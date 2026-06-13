@@ -66,4 +66,14 @@ const liens = [
 .content {
   padding: 1.5rem;
 }
+
+/* À l'impression (Rapport) : masquer la barre de nav, retirer les marges. */
+@media print {
+  .topbar {
+    display: none;
+  }
+  .content {
+    padding: 0;
+  }
+}
 </style>
