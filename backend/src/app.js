@@ -5,6 +5,8 @@
 const express = require('express');
 const cors = require('cors');
 
+const companyRoutes = require('./routes/company.routes');
+
 const app = express();
 
 // CORS activé : le front (http://localhost:5173) doit pouvoir appeler l'API (port 3000).
@@ -17,5 +19,8 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.json({ status: 'ok', service: 'CyberTwin API' });
 });
+
+// Routes métier
+app.use('/company', companyRoutes);
 
 module.exports = app;
