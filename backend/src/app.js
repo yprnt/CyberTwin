@@ -6,6 +6,7 @@ const express = require('express');
 const cors = require('cors');
 
 const companyRoutes = require('./routes/company.routes');
+const assetsRoutes = require('./routes/assets.routes');
 
 const app = express();
 
@@ -22,5 +23,6 @@ app.get('/', (req, res) => {
 
 // Routes métier
 app.use('/company', companyRoutes);
+app.use('/assets', assetsRoutes);
 
 module.exports = app;
