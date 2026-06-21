@@ -7,6 +7,7 @@ const cors = require('cors');
 
 const companyRoutes = require('./routes/company.routes');
 const assetsRoutes = require('./routes/assets.routes');
+const vulnerabilitiesRoutes = require('./routes/vulnerabilities.routes');
 
 const app = express();
 
@@ -24,5 +25,6 @@ app.get('/', (req, res) => {
 // Routes métier
 app.use('/company', companyRoutes);
 app.use('/assets', assetsRoutes);
+app.use('/vulnerabilities', vulnerabilitiesRoutes);
 
 module.exports = app;
