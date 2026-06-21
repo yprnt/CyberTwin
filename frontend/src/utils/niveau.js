@@ -1,30 +1,35 @@
-// Helpers d'affichage du niveau de risque, partagés par Dashboard et Rapport.
-// Niveaux possibles renvoyés par l'API (accents exacts) : faible | moyen | élevé.
+// Mappe les échelles métier vers un « ton » sémantique du design system,
+// consommé par BaseBadge (et la jauge). Couleurs réelles = tokens CSS
+// (s'adaptent automatiquement au thème clair/sombre).
+//
+// Deux échelles distinctes (R4) :
+//   - niveau de risque global : faible | moyen | élevé
+//   - criticité d'une vuln    : faible | moyenne | élevée
 
-// Style du badge (texte + fond) selon le niveau.
-export function niveauBadge(niveau) {
+// Niveau de risque -> ton.
+export function tonNiveau(niveau) {
   switch (niveau) {
     case 'faible':
-      return { color: '#166534', background: '#dcfce7' }
+      return 'success'
     case 'moyen':
-      return { color: '#92400e', background: '#fef3c7' }
+      return 'warning'
     case 'élevé':
-      return { color: '#b91c1c', background: '#fee2e2' }
+      return 'danger'
     default:
-      return { color: '#374151', background: '#e5e7eb' }
+      return 'neutral'
   }
 }
 
-// Couleur pleine (jauge, accents) selon le niveau.
-export function niveauCouleur(niveau) {
-  switch (niveau) {
+// Criticité de vulnérabilité -> ton.
+export function tonCriticite(criticite) {
+  switch (criticite) {
     case 'faible':
-      return '#16a34a'
-    case 'moyen':
-      return '#d97706'
-    case 'élevé':
-      return '#dc2626'
+      return 'success'
+    case 'moyenne':
+      return 'warning'
+    case 'élevée':
+      return 'danger'
     default:
-      return '#9ca3af'
+      return 'neutral'
   }
 }

@@ -6,6 +6,10 @@
 import { computed, onMounted, reactive } from 'vue'
 import { useAssetsStore } from '../stores/assets'
 import { useVulnerabilitiesStore } from '../stores/vulnerabilities'
+import { tonCriticite } from '../utils/niveau'
+import BaseCard from '../components/BaseCard.vue'
+import BaseButton from '../components/BaseButton.vue'
+import BaseBadge from '../components/BaseBadge.vue'
 
 const CRITICITES = ['faible', 'moyenne', 'élevée']
 
@@ -18,10 +22,9 @@ onMounted(async () => {
   await Promise.all([assetsStore.fetchAll(), store.fetchAll()])
 })
 
-// Nom de l'actif associé à une vuln (ou libellé de repli).
 function nomActif(assetId) {
   const a = assetsStore.list.find((x) => x.id === assetId)
-  return a ? a.nom : '— actif inconnu —'
+  return a ? a.nom : 'Actif inconnu'
 }
 
 const aDesActifs = computed(() => assetsStore.list.length > 0)
@@ -51,87 +54,100 @@ async function supprimer(vuln) {
 </script>
 
 <template>
-  <section class="vulns">
-    <h1>Vulnérabilités</h1>
+  <section class="page">
+    <header class="page__head">
+      <h1>Vulnérabilités</h1>
+      <p class="page__sub">Recensez les failles rattachées à chaque actif.</p>
+    </header>
 
-    <p v-if="!aDesActifs && !assetsStore.loading" class="info">
-      Ajoutez d'abord des actifs pour pouvoir y rattacher des vulnérabilités.
-    </p>
+    <BaseCard v-if="!aDesActifs && !assetsStore.loading" class="mb">
+      <p class="muted center">
+        Ajoutez d'abord des actifs pour pouvoir y rattacher des vulnérabilités.
+      </p>
+    </BaseCard>
 
-    <form v-else class="form" @submit.prevent="ajouter">
-      <h2>Ajouter une vulnérabilité</h2>
-      <div class="row">
-        <label class="field">
-          <span>Actif concerné</span>
-          <select v-model="form.assetId" required>
-            <option value="" disabled>— choisir un actif —</option>
-            <option v-for="a in assetsStore.list" :key="a.id" :value="a.id">
-              {{ a.nom }}
-            </option>
-          </select>
-        </label>
-        <label class="field grow">
-          <span>Nom</span>
-          <input v-model="form.nom" type="text" required />
-        </label>
-        <label class="field">
-          <span>Criticité</span>
-          <select v-model="form.criticite">
-            <option v-for="c in CRITICITES" :key="c" :value="c">{{ c }}</option>
-          </select>
-        </label>
-      </div>
-      <div class="actions">
-        <button type="submit" class="btn-primary">Ajouter</button>
-      </div>
-    </form>
+    <BaseCard v-else class="mb">
+      <template #header><h2>Ajouter une vulnérabilité</h2></template>
+      <form class="form" @submit.prevent="ajouter">
+        <div class="row">
+          <label class="field">
+            <span>Actif concerné</span>
+            <select v-model="form.assetId" required>
+              <option value="" disabled>Choisir un actif</option>
+              <option v-for="a in assetsStore.list" :key="a.id" :value="a.id">
+                {{ a.nom }}
+              </option>
+            </select>
+          </label>
+          <label class="field grow">
+            <span>Nom</span>
+            <input v-model="form.nom" type="text" required />
+          </label>
+          <label class="field">
+            <span>Criticité</span>
+            <select v-model="form.criticite">
+              <option v-for="c in CRITICITES" :key="c" :value="c">{{ c }}</option>
+            </select>
+          </label>
+        </div>
+        <div class="actions">
+          <BaseButton type="submit">Ajouter</BaseButton>
+        </div>
+      </form>
+    </BaseCard>
 
-    <p v-if="store.error" class="error">{{ store.error }}</p>
+    <p v-if="store.error" class="msg msg--error">{{ store.error }}</p>
 
-    <p v-if="store.loading" class="info">Chargement…</p>
-    <p v-else-if="store.list.length === 0" class="info">Aucune vulnérabilité enregistrée.</p>
+    <p v-if="store.loading" class="muted">Chargement…</p>
+    <BaseCard v-else-if="store.list.length === 0">
+      <p class="muted center">Aucune vulnérabilité enregistrée.</p>
+    </BaseCard>
 
-    <table v-else class="table">
-      <thead>
-        <tr>
-          <th>Vulnérabilité</th>
-          <th>Actif</th>
-          <th>Criticité</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="v in store.list" :key="v.id">
-          <td>{{ v.nom }}</td>
-          <td>{{ nomActif(v.assetId) }}</td>
-          <td><span :class="['crit', 'crit-' + v.criticite]">{{ v.criticite }}</span></td>
-          <td>
-            <button class="link link-danger" @click="supprimer(v)">Supprimer</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <BaseCard v-else>
+      <table>
+        <thead>
+          <tr>
+            <th>Vulnérabilité</th>
+            <th>Actif</th>
+            <th>Criticité</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="v in store.list" :key="v.id">
+            <td class="strong">{{ v.nom }}</td>
+            <td>{{ nomActif(v.assetId) }}</td>
+            <td><BaseBadge :ton="tonCriticite(v.criticite)">{{ v.criticite }}</BaseBadge></td>
+            <td class="td-actions">
+              <button class="link link--danger" @click="supprimer(v)">Supprimer</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </BaseCard>
   </section>
 </template>
 
 <style scoped>
-.vulns {
-  max-width: 820px;
+.page__head {
+  margin-bottom: 1.25rem;
+}
+.page__sub {
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+.mb {
+  margin-bottom: 1rem;
 }
 .form {
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin: 1rem 0;
-}
-.form h2 {
-  margin: 0 0 0.75rem;
-  font-size: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 .row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.9rem;
   align-items: flex-end;
 }
 .field {
@@ -145,78 +161,52 @@ async function supprimer(vuln) {
 .field > span {
   font-weight: 600;
   font-size: 0.85rem;
-  color: #374151;
-}
-input[type='text'],
-select {
-  padding: 0.5rem 0.6rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.375rem;
-  font-size: 0.95rem;
 }
 .actions {
-  margin-top: 0.75rem;
+  display: flex;
+  gap: 0.6rem;
 }
-.btn-primary {
-  background: #2563eb;
-  color: #fff;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
-  cursor: pointer;
+.td-actions {
+  text-align: right;
 }
-.table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.table th,
-.table td {
-  text-align: left;
-  padding: 0.55rem 0.5rem;
-  border-bottom: 1px solid #e5e7eb;
-  font-size: 0.92rem;
-}
-.table th {
-  color: #6b7280;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-}
-.crit {
-  padding: 0.15rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  text-transform: capitalize;
-}
-.crit-faible {
-  background: #dcfce7;
-  color: #166534;
-}
-.crit-moyenne {
-  background: #fef3c7;
-  color: #92400e;
-}
-.crit-élevée {
-  background: #fee2e2;
-  color: #b91c1c;
+.strong {
+  font-weight: 600;
 }
 .link {
+  width: auto;
   background: none;
   border: none;
-  color: #2563eb;
+  color: var(--accent);
   cursor: pointer;
   padding: 0;
+  font: inherit;
   font-size: 0.9rem;
 }
-.link-danger {
-  color: #b91c1c;
+.link:hover {
+  text-decoration: underline;
 }
-.info {
-  color: #6b7280;
+.link--danger {
+  color: var(--danger);
 }
-.error {
-  color: #b91c1c;
-  background: #fee2e2;
-  padding: 0.5rem 0.7rem;
-  border-radius: 0.375rem;
+.muted {
+  color: var(--text-muted);
+}
+.center {
+  text-align: center;
+}
+.msg {
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  margin: 0 0 1rem;
+  font-size: 0.92rem;
+}
+.msg--error {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+@media (max-width: 600px) {
+  .field.grow {
+    flex-basis: 100%;
+  }
 }
 </style>
