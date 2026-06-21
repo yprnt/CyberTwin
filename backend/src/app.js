@@ -8,6 +8,7 @@ const cors = require('cors');
 const companyRoutes = require('./routes/company.routes');
 const assetsRoutes = require('./routes/assets.routes');
 const vulnerabilitiesRoutes = require('./routes/vulnerabilities.routes');
+const riskRoutes = require('./routes/risk.routes');
 
 const app = express();
 
@@ -26,5 +27,6 @@ app.get('/', (req, res) => {
 app.use('/company', companyRoutes);
 app.use('/assets', assetsRoutes);
 app.use('/vulnerabilities', vulnerabilitiesRoutes);
+app.use('/risk', riskRoutes);
 
 module.exports = app;
