@@ -1,12 +1,14 @@
 <script setup>
-// Vue Rapport : synthèse imprimable. Charge entreprise + actifs + vulns et
-// recalcule le risque (R5), puis propose une impression (window.print()).
+// Vue Rapport : synthèse imprimable, volontairement sobre (mise en page
+// « document », couleur réduite à de discrètes pastilles de ton). Charge
+// entreprise + actifs + vulns et recalcule le risque (R5).
 import { computed, onMounted } from 'vue'
 import { useCompanyStore } from '../stores/company'
 import { useAssetsStore } from '../stores/assets'
 import { useVulnerabilitiesStore } from '../stores/vulnerabilities'
 import { useRiskStore } from '../stores/risk'
-import { niveauBadge } from '../utils/niveau'
+import { tonNiveau, tonCriticite } from '../utils/niveau'
+import BaseButton from '../components/BaseButton.vue'
 
 const companyStore = useCompanyStore()
 const assetsStore = useAssetsStore()
@@ -27,194 +29,293 @@ const resultat = computed(() => riskStore.result)
 
 function nomActif(assetId) {
   const a = assetsStore.list.find((x) => x.id === assetId)
-  return a ? a.nom : '—'
+  return a ? a.nom : 'Actif inconnu'
 }
+// Pastille de ton discrète (1 seule touche de couleur par ligne).
+const dot = (ton) => `var(--${ton})`
 
 function imprimer() {
   window.print()
 }
 
-const dateDuJour = new Date().toLocaleDateString('fr-FR')
+const dateDuJour = new Date().toLocaleDateString('fr-FR', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+})
 </script>
 
 <template>
-  <section class="report">
-    <div class="head no-print">
-      <h1>Rapport</h1>
-      <button class="btn-primary" @click="imprimer">Imprimer / PDF</button>
-    </div>
+  <section class="page">
+    <header class="bar no-print">
+      <div>
+        <h1>Rapport</h1>
+        <p class="page__sub">Synthèse complète, prête à imprimer ou exporter en PDF.</p>
+      </div>
+      <BaseButton @click="imprimer">Imprimer / PDF</BaseButton>
+    </header>
 
-    <p v-if="riskStore.error" class="error no-print">{{ riskStore.error }}</p>
+    <p v-if="riskStore.error" class="msg msg--error no-print">{{ riskStore.error }}</p>
 
     <article class="sheet">
-      <header class="sheet-head">
-        <h2>Rapport d'évaluation du risque cyber</h2>
-        <p class="date">Édité le {{ dateDuJour }}</p>
+      <header class="sheet__head">
+        <div>
+          <p class="sheet__kicker">Évaluation du risque cyber</p>
+          <h2 class="sheet__title">{{ company && company.nom ? company.nom : 'Rapport CyberTwin' }}</h2>
+        </div>
+        <p class="sheet__date">{{ dateDuJour }}</p>
       </header>
 
-      <section>
-        <h3>Entreprise</h3>
+      <!-- Bandeau synthèse : sobre, une seule pastille de ton. -->
+      <div v-if="resultat" class="summary">
+        <div class="summary__score">
+          <span class="summary__num">{{ resultat.score }}</span>
+          <span class="summary__den">/ 100</span>
+        </div>
+        <div class="summary__meta">
+          <span class="summary__level">
+            <span class="dot" :style="{ background: dot(tonNiveau(resultat.niveau)) }"></span>
+            Niveau {{ resultat.niveau }}
+          </span>
+          <span class="summary__counts">
+            {{ resultat.nbActifs }} actifs · {{ resultat.nbVulnerabilites }} vulnérabilités
+          </span>
+        </div>
+      </div>
+
+      <section class="block">
+        <p class="block__label">Entreprise</p>
         <template v-if="company && company.nom">
-          <p><strong>{{ company.nom }}</strong> — {{ company.secteur }}</p>
-          <ul class="meta">
-            <li>Employés : {{ company.nbEmployes }}</li>
-            <li>Serveurs : {{ company.nbServeurs }}</li>
-            <li>Postes : {{ company.nbPostes }}</li>
-            <li>
-              Services exposés :
-              {{ (company.servicesExposes || []).join(', ') || '—' }}
-            </li>
-          </ul>
+          <p class="block__lead">{{ company.secteur }}</p>
+          <dl class="facts">
+            <div><dt>Employés</dt><dd>{{ company.nbEmployes }}</dd></div>
+            <div><dt>Serveurs</dt><dd>{{ company.nbServeurs }}</dd></div>
+            <div><dt>Postes</dt><dd>{{ company.nbPostes }}</dd></div>
+            <div class="facts__wide">
+              <dt>Services exposés</dt>
+              <dd>{{ (company.servicesExposes || []).join(', ') || 'Aucun' }}</dd>
+            </div>
+          </dl>
         </template>
-        <p v-else class="info">Aucune entreprise configurée.</p>
+        <p v-else class="muted">Aucune entreprise configurée.</p>
       </section>
 
-      <section v-if="resultat" class="synthese">
-        <h3>Synthèse du risque</h3>
-        <p>
-          Score : <strong>{{ resultat.score }}/100</strong> — Niveau :
-          <span class="badge" :style="niveauBadge(resultat.niveau)">{{ resultat.niveau }}</span>
-        </p>
-        <p>{{ resultat.nbActifs }} actif(s), {{ resultat.nbVulnerabilites }} vulnérabilité(s).</p>
-      </section>
-
-      <section>
-        <h3>Inventaire des actifs</h3>
-        <table v-if="assetsStore.list.length" class="table">
-          <thead>
-            <tr><th>Nom</th><th>Type</th><th>Exposé</th></tr>
-          </thead>
+      <section class="block">
+        <p class="block__label">Inventaire des actifs</p>
+        <table v-if="assetsStore.list.length" class="doc-table">
+          <thead><tr><th>Nom</th><th>Type</th><th>Exposé</th></tr></thead>
           <tbody>
             <tr v-for="a in assetsStore.list" :key="a.id">
               <td>{{ a.nom }}</td>
-              <td>{{ a.type }}</td>
+              <td class="muted">{{ a.type }}</td>
               <td>{{ a.expose ? 'Oui' : 'Non' }}</td>
             </tr>
           </tbody>
         </table>
-        <p v-else class="info">Aucun actif.</p>
+        <p v-else class="muted">Aucun actif.</p>
       </section>
 
-      <section>
-        <h3>Vulnérabilités</h3>
-        <table v-if="vulnsStore.list.length" class="table">
-          <thead>
-            <tr><th>Vulnérabilité</th><th>Actif</th><th>Criticité</th></tr>
-          </thead>
+      <section class="block">
+        <p class="block__label">Vulnérabilités</p>
+        <table v-if="vulnsStore.list.length" class="doc-table">
+          <thead><tr><th>Vulnérabilité</th><th>Actif</th><th>Criticité</th></tr></thead>
           <tbody>
             <tr v-for="v in vulnsStore.list" :key="v.id">
               <td>{{ v.nom }}</td>
-              <td>{{ nomActif(v.assetId) }}</td>
-              <td>{{ v.criticite }}</td>
+              <td class="muted">{{ nomActif(v.assetId) }}</td>
+              <td>
+                <span class="dot" :style="{ background: dot(tonCriticite(v.criticite)) }"></span>
+                {{ v.criticite }}
+              </td>
             </tr>
           </tbody>
         </table>
-        <p v-else class="info">Aucune vulnérabilité.</p>
+        <p v-else class="muted">Aucune vulnérabilité.</p>
       </section>
 
-      <section v-if="resultat">
-        <h3>Recommandations</h3>
-        <ul class="recos">
+      <section v-if="resultat" class="block">
+        <p class="block__label">Recommandations</p>
+        <ol class="recos">
           <li v-for="(reco, i) in resultat.recommandations" :key="i">{{ reco }}</li>
-        </ul>
+        </ol>
       </section>
     </article>
   </section>
 </template>
 
 <style scoped>
-.report {
-  max-width: 800px;
+.bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
 }
-.head {
+.page__sub {
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.sheet {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 2.5rem;
+  max-width: 760px;
+  margin: 0 auto;
+}
+.sheet__head {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.sheet__kicker {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+}
+.sheet__title {
+  font-size: 1.5rem;
+}
+.sheet__date {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* Bandeau synthèse */
+.summary {
+  display: flex;
   align-items: center;
+  gap: 1.5rem;
+  padding: 1.4rem 0;
+  border-bottom: 1px solid var(--border);
 }
-.btn-primary {
-  background: #2563eb;
-  color: #fff;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
-  cursor: pointer;
+.summary__score {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
 }
-.sheet {
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-  margin-top: 1rem;
+.summary__num {
+  font-size: 2.6rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
 }
-.sheet-head {
-  border-bottom: 2px solid #1f2937;
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-}
-.sheet-head h2 {
-  margin: 0;
-}
-.date {
-  color: #6b7280;
-  font-size: 0.85rem;
-  margin: 0.25rem 0 0;
-}
-.sheet h3 {
+.summary__den {
+  color: var(--text-muted);
   font-size: 1rem;
-  margin: 1.25rem 0 0.5rem;
 }
-.meta {
-  margin: 0;
-  padding-left: 1.1rem;
-  color: #374151;
+.summary__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
-.badge {
-  padding: 0.15rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.85rem;
+.summary__level {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   font-weight: 600;
   text-transform: capitalize;
 }
-.table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.table th,
-.table td {
-  text-align: left;
-  padding: 0.4rem 0.5rem;
-  border-bottom: 1px solid #e5e7eb;
+.summary__counts {
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
-.table th {
-  color: #6b7280;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-}
-.recos {
-  padding-left: 1.1rem;
-  color: #374151;
-}
-.recos li {
-  margin-bottom: 0.4rem;
-}
-.info {
-  color: #6b7280;
-}
-.error {
-  color: #b91c1c;
-  background: #fee2e2;
-  padding: 0.5rem 0.7rem;
-  border-radius: 0.375rem;
+.dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
-/* Impression : masquer la nav globale et les commandes, garder la feuille. */
+/* Sections */
+.block {
+  margin-top: 1.75rem;
+}
+.block__label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  margin-bottom: 0.7rem;
+}
+.block__lead {
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+}
+.facts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.8rem 1.5rem;
+  margin: 0;
+}
+.facts__wide {
+  grid-column: 1 / -1;
+}
+.facts dt {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.facts dd {
+  margin: 0.1rem 0 0;
+  font-weight: 500;
+}
+
+/* Tables document : lignes légères, pas de fond coloré */
+.doc-table th {
+  font-size: 0.72rem;
+}
+.doc-table td {
+  font-size: 0.92rem;
+}
+.doc-table td:last-child {
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.recos {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+.recos li {
+  margin-bottom: 0.5rem;
+  line-height: 1.55;
+}
+.muted {
+  color: var(--text-muted);
+}
+.msg {
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  margin: 0 0 1rem;
+}
+.msg--error {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
 @media print {
-  .no-print {
-    display: none !important;
-  }
   .sheet {
     border: none;
+    box-shadow: none;
     padding: 0;
+    max-width: none;
+    background: #fff;
+  }
+}
+@media (max-width: 600px) {
+  .sheet {
+    padding: 1.5rem;
+  }
+  .facts {
+    grid-template-columns: 1fr 1fr;
   }
 }
 </style>
