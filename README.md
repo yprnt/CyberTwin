@@ -4,7 +4,7 @@ Application web Fullstack qui modélise une entreprise fictive, gère ses **acti
 informatiques et leurs **vulnérabilités**, et évalue automatiquement son **niveau de risque
 cyber** (faible / moyen / élevé) avec des recommandations de sécurité.
 
-Projet de binôme — **Backend** : Node.js / Express / MySQL · **Frontend** : Vue.js / Pinia.
+Projet de binôme Mehmet YUKSEL / PARENT YANIS— **Backend** : Node.js / Express / MySQL · **Frontend** : Vue.js / Pinia.
 
 ---
 
