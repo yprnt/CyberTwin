@@ -1,10 +1,8 @@
-// vulnerabilities.controller.js — logique des routes /vulnerabilities.
-// Pas de PUT (règle R7) : pour "modifier" une vuln, le front supprime + ré-ajoute.
+// Pas de PUT (règle R7) : pour modifier une vuln, le front supprime + ré-ajoute.
 
 const pool = require('../db/pool');
 const { CRITICITES } = require('../constants');
 
-// GET /vulnerabilities — liste toutes les vulnérabilités ([] si aucune).
 async function getVulnerabilities(req, res) {
   try {
     const [rows] = await pool.query(
@@ -12,11 +10,11 @@ async function getVulnerabilities(req, res) {
     );
     res.json(rows);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'Erreur serveur lors de la lecture des vulnérabilités.' });
   }
 }
 
-// POST /vulnerabilities — ajoute une vulnérabilité à un actif existant.
 async function createVulnerability(req, res) {
   const body = req.body || {};
 
@@ -24,13 +22,11 @@ async function createVulnerability(req, res) {
   const nom = typeof body.nom === 'string' ? body.nom.trim() : '';
   const criticite = typeof body.criticite === 'string' ? body.criticite.trim() : '';
 
-  // 1) Champs obligatoires.
   if (!Number.isInteger(assetId) || !nom || !criticite) {
     return res.status(400).json({
       message: 'Les champs « assetId », « nom » et « criticite » sont obligatoires.',
     });
   }
-  // 2) Criticité dans la liste autorisée.
   if (!CRITICITES.includes(criticite)) {
     return res.status(400).json({
       message: `Criticité invalide. Valeurs autorisées : ${CRITICITES.join(', ')}.`,
@@ -38,7 +34,7 @@ async function createVulnerability(req, res) {
   }
 
   try {
-    // 3) L'actif doit exister (sinon 404).
+    // l'actif doit exister, sinon 404
     const [assets] = await pool.query('SELECT id FROM assets WHERE id = ?', [assetId]);
     if (assets.length === 0) {
       return res.status(404).json({ message: "L'actif (assetId) n'existe pas." });
@@ -50,11 +46,11 @@ async function createVulnerability(req, res) {
     );
     res.status(201).json({ id: result.insertId, assetId, nom, criticite });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'Erreur serveur lors de la création de la vulnérabilité.' });
   }
 }
 
-// DELETE /vulnerabilities/:id — supprime une vulnérabilité.
 async function deleteVulnerability(req, res) {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
@@ -68,6 +64,7 @@ async function deleteVulnerability(req, res) {
     }
     res.json({ message: 'Vulnérabilité supprimée.' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'Erreur serveur lors de la suppression de la vulnérabilité.' });
   }
 }

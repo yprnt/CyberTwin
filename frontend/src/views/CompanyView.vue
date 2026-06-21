@@ -1,7 +1,5 @@
 <script setup>
-// Vue Entreprise : lit l'entreprise (GET /company) au montage, puis permet de
-// la créer ou la modifier (PUT /company via le store). L'entreprise est un
-// singleton (R2) : le mode « Créer » / « Modifier » dépend de estCreee().
+// Vue Entreprise. Singleton (R2) : le mode « Créer » / « Modifier » dépend de estCreee().
 import { onMounted, reactive, ref, watch } from 'vue'
 import { useCompanyStore } from '../stores/company'
 import BaseCard from '../components/BaseCard.vue'
@@ -44,6 +42,12 @@ function ajouterService() {
 }
 function retirerService(index) {
   form.servicesExposes.splice(index, 1)
+}
+// La virgule valide aussi un service (en plus de la touche Entrée).
+function ajouterSurVirgule(e) {
+  if (e.key !== ',') return
+  e.preventDefault()
+  ajouterService()
 }
 
 async function soumettre() {
@@ -113,7 +117,7 @@ async function soumettre() {
             type="text"
             placeholder="Ajouter un service puis Entrée"
             @keydown.enter.prevent="ajouterService"
-            @keydown="(e) => e.key === ',' && (e.preventDefault(), ajouterService())"
+            @keydown="ajouterSurVirgule"
           />
         </div>
 
@@ -134,13 +138,6 @@ async function soumettre() {
 </template>
 
 <style scoped>
-.page__head {
-  margin-bottom: 1.25rem;
-}
-.page__sub {
-  color: var(--text-muted);
-  margin-top: 0.25rem;
-}
 .form {
   display: flex;
   flex-direction: column;
@@ -200,19 +197,9 @@ async function soumettre() {
   display: flex;
   gap: 0.6rem;
 }
+/* Dans le formulaire (flex + gap), pas de marge basse : le gap gère l'espacement. */
 .msg {
-  padding: 0.6rem 0.8rem;
-  border-radius: var(--radius);
   margin: 0;
-  font-size: 0.92rem;
-}
-.msg--error {
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-.msg--ok {
-  color: var(--success);
-  background: var(--success-soft);
 }
 @media (max-width: 600px) {
   .grid--2,

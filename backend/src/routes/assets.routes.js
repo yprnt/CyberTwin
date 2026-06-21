@@ -1,5 +1,3 @@
-// assets.routes.js — routes /assets (montées sous /assets dans app.js).
-
 const express = require('express');
 
 const {
@@ -11,9 +9,9 @@ const {
 
 const router = express.Router();
 
-router.get('/', getAssets); // GET    /assets
-router.post('/', createAsset); // POST   /assets
-router.put('/:id', updateAsset); // PUT    /assets/:id
-router.delete('/:id', deleteAsset); // DELETE /assets/:id
+router.get('/', getAssets);
+router.post('/', createAsset);
+router.put('/:id', updateAsset);
+router.delete('/:id', deleteAsset);
 
 module.exports = router;

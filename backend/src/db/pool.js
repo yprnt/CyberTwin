@@ -1,6 +1,4 @@
-// pool.js — pool de connexions MySQL partagé par toute l'API.
-// On utilise l'API "promise" de mysql2 pour pouvoir faire des `await pool.query(...)`.
-// Les identifiants viennent du .env (chargé par server.js avant le require de ce module).
+// pool MySQL partagé par toute l'API (.env chargé par server.js avant ce require).
 
 const mysql = require('mysql2/promise');
 
@@ -13,7 +11,7 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  charset: 'utf8mb4_unicode_ci', // accents : « élevée », « Base de données »…
+  charset: 'utf8mb4', // un charset, pas une collation — pour les accents (« élevée »…)
 });
 
 module.exports = pool;

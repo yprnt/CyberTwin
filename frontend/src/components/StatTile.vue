@@ -1,12 +1,10 @@
 <script setup>
-// Tuile de statistique (dashboard) : icône colorée + libellé + grande valeur
-// (ou contenu libre via le slot par défaut, ex. un badge).
+// value null -> on rend le slot par défaut à la place (ex. un badge).
 // ton : accent | success | warning | danger | neutral (couleur de l'icône).
 defineProps({
   label: { type: String, required: true },
   value: { type: [String, Number], default: null },
   ton: { type: String, default: 'accent' },
-  // Affiche la valeur avec le dégradé signature (réservé aux chiffres phares).
   gradient: { type: Boolean, default: false },
 })
 </script>

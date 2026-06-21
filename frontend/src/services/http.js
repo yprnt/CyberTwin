@@ -1,9 +1,7 @@
-// Implémentation HTTP réelle de l'API (vrais appels fetch).
-// Même interface que mock.js -> voir services/api.js pour la bascule.
+// Implémentation HTTP réelle de l'API. Même interface que mock.js.
 import { API_BASE } from '../config'
 
-// Appel générique. Renvoie le JSON parsé, ou lève une Error dont le message
-// est celui fourni par le back ({ message: "..." }), à afficher tel quel.
+// Lève une Error dont le message est celui du back ({ message }), affichable tel quel.
 async function request(path, options = {}) {
   let res
   try {

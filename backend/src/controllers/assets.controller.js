@@ -1,9 +1,7 @@
-// assets.controller.js — logique des routes /assets (CRUD complet).
-
 const pool = require('../db/pool');
 const { ASSET_TYPES } = require('../constants');
 
-// MySQL renvoie `expose` en 0/1 (tinyint) : on le repasse en vrai booléen pour le front.
+// MySQL renvoie expose en 0/1 (tinyint) : on le repasse en booléen pour le front
 function normalizeAsset(row) {
   return {
     id: row.id,
@@ -13,22 +11,20 @@ function normalizeAsset(row) {
   };
 }
 
-// Interprète une valeur `expose` venant du body en booléen.
 function parseExpose(value) {
   return value === true || value === 'true' || value === 1;
 }
 
-// GET /assets — liste tous les actifs ([] si aucun).
 async function getAssets(req, res) {
   try {
     const [rows] = await pool.query('SELECT id, nom, type, expose FROM assets ORDER BY id');
     res.json(rows.map(normalizeAsset));
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'Erreur serveur lors de la lecture des actifs.' });
   }
 }
 
-// POST /assets — crée un actif (id généré par la base).
 async function createAsset(req, res) {
   const body = req.body || {};
   const nom = typeof body.nom === 'string' ? body.nom.trim() : '';
@@ -43,7 +39,7 @@ async function createAsset(req, res) {
     });
   }
 
-  const expose = parseExpose(body.expose); // false si non fourni
+  const expose = parseExpose(body.expose);
 
   try {
     const [result] = await pool.query(
@@ -52,11 +48,12 @@ async function createAsset(req, res) {
     );
     res.status(201).json({ id: result.insertId, nom, type, expose });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Erreur serveur lors de la création de l'actif." });
   }
 }
 
-// PUT /assets/:id — modifie un actif (champs partiels).
+// PUT partiel : on part de l'existant et on remplace les champs fournis.
 async function updateAsset(req, res) {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
@@ -71,7 +68,6 @@ async function updateAsset(req, res) {
     const current = rows[0];
     const body = req.body || {};
 
-    // On part des valeurs actuelles, puis on remplace celles fournies.
     let nom = current.nom;
     if (body.nom !== undefined) {
       nom = typeof body.nom === 'string' ? body.nom.trim() : '';
@@ -103,11 +99,12 @@ async function updateAsset(req, res) {
     ]);
     res.json({ id, nom, type, expose });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Erreur serveur lors de la mise à jour de l'actif." });
   }
 }
 
-// DELETE /assets/:id — supprime un actif ET ses vulnérabilités (cascade SQL, règle R3).
+// supprime l'actif ET ses vulnérabilités (cascade SQL, règle R3)
 async function deleteAsset(req, res) {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
@@ -121,6 +118,7 @@ async function deleteAsset(req, res) {
     }
     res.json({ message: 'Actif supprimé.' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Erreur serveur lors de la suppression de l'actif." });
   }
 }

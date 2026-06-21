@@ -1,8 +1,6 @@
 <script setup>
-// Vue Vulnérabilités : choisir un actif puis ajouter / supprimer ses vulns.
-//  - criticite = select faible | moyenne | élevée (accents exacts, sinon 400).
-//  - Pas de modification de vuln (R7) : pour « modifier », supprimer + ré-ajouter.
-//  - Chaque vuln affiche le nom de son actif (vuln.assetId -> asset.nom).
+// Vue Vulnérabilités. Criticité : accents exacts (faible|moyenne|élevée) sinon 400.
+// Pas de PUT vuln (R7) : pour « modifier », supprimer puis ré-ajouter.
 import { computed, onMounted, reactive } from 'vue'
 import { useAssetsStore } from '../stores/assets'
 import { useVulnerabilitiesStore } from '../stores/vulnerabilities'
@@ -91,7 +89,7 @@ async function supprimer(vuln) {
           </label>
         </div>
         <div class="actions">
-          <BaseButton type="submit">Ajouter</BaseButton>
+          <BaseButton type="submit" :disabled="store.loading">Ajouter</BaseButton>
         </div>
       </form>
     </BaseCard>
@@ -104,6 +102,7 @@ async function supprimer(vuln) {
     </BaseCard>
 
     <BaseCard v-else>
+      <div class="table-scroll">
       <table>
         <thead>
           <tr>
@@ -124,18 +123,12 @@ async function supprimer(vuln) {
           </tr>
         </tbody>
       </table>
+      </div>
     </BaseCard>
   </section>
 </template>
 
 <style scoped>
-.page__head {
-  margin-bottom: 1.25rem;
-}
-.page__sub {
-  color: var(--text-muted);
-  margin-top: 0.25rem;
-}
 .mb {
   margin-bottom: 1rem;
 }
@@ -168,41 +161,6 @@ async function supprimer(vuln) {
 }
 .td-actions {
   text-align: right;
-}
-.strong {
-  font-weight: 600;
-}
-.link {
-  width: auto;
-  background: none;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
-  padding: 0;
-  font: inherit;
-  font-size: 0.9rem;
-}
-.link:hover {
-  text-decoration: underline;
-}
-.link--danger {
-  color: var(--danger);
-}
-.muted {
-  color: var(--text-muted);
-}
-.center {
-  text-align: center;
-}
-.msg {
-  padding: 0.6rem 0.8rem;
-  border-radius: var(--radius);
-  margin: 0 0 1rem;
-  font-size: 0.92rem;
-}
-.msg--error {
-  color: var(--danger);
-  background: var(--danger-soft);
 }
 @media (max-width: 600px) {
   .field.grow {

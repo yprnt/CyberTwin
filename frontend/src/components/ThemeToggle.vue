@@ -1,5 +1,4 @@
 <script setup>
-// Bascule clair / sombre. Icône soleil (mode clair actif) ou lune (mode sombre).
 import { useTheme } from '../composables/useTheme'
 
 const { isDark, toggle } = useTheme()

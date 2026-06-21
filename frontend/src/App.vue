@@ -1,5 +1,4 @@
 <script setup>
-// Layout racine : barre de navigation commune + bascule de thème + vue active.
 import ThemeToggle from './components/ThemeToggle.vue'
 
 const liens = [
@@ -20,7 +19,7 @@ const liens = [
         <span class="brand__name">CyberTwin</span>
       </RouterLink>
 
-      <nav class="nav">
+      <nav class="nav" aria-label="Navigation principale">
         <RouterLink
           v-for="lien in liens"
           :key="lien.to"

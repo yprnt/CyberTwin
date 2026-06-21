@@ -1,6 +1,5 @@
 <script setup>
-// Conteneur « surface » : padding, arrondi, ombre douce, bordure.
-// Slot par défaut = contenu ; slot #header = en-tête optionnel (titre, actions).
+// Slot par défaut = corps ; slot #header = en-tête optionnel.
 </script>
 
 <template>

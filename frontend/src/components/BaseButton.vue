@@ -1,5 +1,5 @@
 <script setup>
-// Bouton générique tokenisé. variant : primary | ghost | danger.
+// variant : primary | ghost | danger.
 defineProps({
   variant: { type: String, default: 'primary' },
 })

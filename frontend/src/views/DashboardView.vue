@@ -1,9 +1,5 @@
 <script setup>
-// Vue Tableau de bord : recalcule le risque (R5) à chaque ouverture puis
-// affiche stats + jauge + 3 graphiques complémentaires + recommandations.
-//   1. Actifs par type           (où se concentre le parc)
-//   2. Vulnérabilités par criticité (gravité des failles)
-//   3. Exposition des actifs      (surface d'attaque Internet)
+// Vue Tableau de bord : recalcule le risque (R5) à chaque ouverture.
 import { computed, onMounted } from 'vue'
 import { Doughnut, Bar } from 'vue-chartjs'
 import {
@@ -43,17 +39,32 @@ const resultat = computed(() => riskStore.result)
 const aDesActifs = computed(() => assetsStore.list.length > 0)
 const aDesVulns = computed(() => vulnsStore.list.length > 0)
 
-// Couleurs dépendantes du thème (textes/grilles des axes et légendes).
-const txtColor = computed(() => (isDark.value ? '#e7ecf3' : '#1c2333'))
-const mutedColor = computed(() => (isDark.value ? '#94a3b8' : '#6b7280'))
-const gridColor = computed(() =>
-  isDark.value ? 'rgba(148,163,184,0.16)' : 'rgba(16,24,40,0.08)',
-)
-const segBorder = computed(() => (isDark.value ? '#1e293b' : '#ffffff'))
+// Chart.js veut des couleurs concrètes, pas des var(--…). `themed` lit le token
+// CSS et le relit à chaque bascule de thème via la dépendance à isDark.
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+}
+const themed = (name) =>
+  computed(() => {
+    void isDark.value
+    return cssVar(name)
+  })
 
+const txtColor = themed('--text')
+const mutedColor = themed('--text-muted')
+const gridColor = themed('--border')
+const segBorder = themed('--surface')
+
+// Tons sémantiques, identiques aux badges et à la jauge.
+const cFaible = themed('--success')
+const cMoyenne = themed('--warning')
+const cElevee = themed('--danger')
+const cNeutral = themed('--neutral')
+
+// Palette catégorielle pour « actifs par type » : couleurs distinctes sans
+// équivalent sémantique dans les tokens, donc volontairement fixes.
 const PALETTE = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4']
 
-// 1. Actifs par type ------------------------------------------------------
 const typeData = computed(() => {
   const par = {}
   for (const a of assetsStore.list) par[a.type] = (par[a.type] || 0) + 1
@@ -71,7 +82,6 @@ const typeData = computed(() => {
   }
 })
 
-// 2. Vulnérabilités par criticité ----------------------------------------
 const critData = computed(() => {
   const ordre = ['faible', 'moyenne', 'élevée']
   const par = { faible: 0, moyenne: 0, élevée: 0 }
@@ -81,7 +91,7 @@ const critData = computed(() => {
     datasets: [
       {
         data: ordre.map((c) => par[c]),
-        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+        backgroundColor: [cFaible.value, cMoyenne.value, cElevee.value],
         borderRadius: 6,
         maxBarThickness: 56,
       },
@@ -89,7 +99,6 @@ const critData = computed(() => {
   }
 })
 
-// 3. Exposition des actifs ------------------------------------------------
 const exposData = computed(() => {
   const exposes = assetsStore.list.filter((a) => a.expose === true).length
   const proteges = assetsStore.list.length - exposes
@@ -98,7 +107,7 @@ const exposData = computed(() => {
     datasets: [
       {
         data: [exposes, proteges],
-        backgroundColor: ['#f59e0b', '#94a3b8'],
+        backgroundColor: [cMoyenne.value, cNeutral.value],
         borderColor: segBorder.value,
         borderWidth: 2,
       },
@@ -139,6 +148,9 @@ const barOptions = computed(() => ({
 
     <p v-if="riskStore.loading" class="muted">Calcul du risque…</p>
     <p v-if="riskStore.error" class="msg msg--error">{{ riskStore.error }}</p>
+    <p v-if="!resultat && !riskStore.loading && !riskStore.error" class="muted">
+      Aucune donnée à afficher pour le moment.
+    </p>
 
     <template v-if="resultat">
       <div class="tiles">
@@ -223,13 +235,6 @@ const barOptions = computed(() => ({
 </template>
 
 <style scoped>
-.page__head {
-  margin-bottom: 1.25rem;
-}
-.page__sub {
-  color: var(--text-muted);
-  margin-top: 0.25rem;
-}
 .tiles {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -324,21 +329,6 @@ const barOptions = computed(() => ({
   font-size: 0.94rem;
   line-height: 1.5;
   padding-top: 0.1rem;
-}
-.muted {
-  color: var(--text-muted);
-}
-.center {
-  text-align: center;
-}
-.msg {
-  padding: 0.6rem 0.8rem;
-  border-radius: var(--radius);
-  margin: 0 0 1rem;
-}
-.msg--error {
-  color: var(--danger);
-  background: var(--danger-soft);
 }
 @media (max-width: 760px) {
   .tiles {

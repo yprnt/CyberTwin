@@ -1,24 +1,18 @@
-// check.js — teste que le pool se connecte bien et que le schéma est en place.
-//
-//   npm run db:check
-//
-// Affiche les tables, la ligne company (singleton) et le bon encodage des accents.
+// npm run db:check — vérifie connexion, schéma et encodage des accents.
 
 require('dotenv').config();
 
 const pool = require('./pool');
 
 async function main() {
-  // 1) Connexion + liste des tables
   const [tables] = await pool.query('SHOW TABLES');
   const names = tables.map((row) => Object.values(row)[0]);
   console.log('Tables présentes :', names.join(', ') || '(aucune)');
 
-  // 2) La ligne singleton company doit exister (id = 1)
   const [company] = await pool.query('SELECT id, nom, servicesExposes FROM company WHERE id = 1');
   console.log('Ligne company    :', company[0] || '(absente !)');
 
-  // 3) Vérif accents : l'ENUM criticite doit contenir « élevée » intact
+  // l'ENUM criticite doit contenir « élevée » intact (test accents)
   const [enumInfo] = await pool.query(
     "SELECT COLUMN_TYPE FROM information_schema.COLUMNS " +
     "WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'vulnerabilities' AND COLUMN_NAME = 'criticite'",

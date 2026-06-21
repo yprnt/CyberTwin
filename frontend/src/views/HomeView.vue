@@ -1,8 +1,6 @@
 <script setup>
-// Vue d'accueil — éditoriale et lisible : un message clair, deux actions
-// évidentes, puis « comment ça marche ». Aucun élément décoratif ambigu.
-//  - « Créer de zéro »  -> POST /demo/reset  puis /entreprise
-//  - « Charger la démo » -> POST /demo/load  puis /tableau-de-bord
+// Accueil. « Créer de zéro » -> /demo/reset puis /entreprise ;
+// « Charger la démo » -> /demo/load puis /tableau-de-bord.
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../services/api'
@@ -58,7 +56,6 @@ const etapes = [
 
 <template>
   <section class="home">
-    <!-- Héro : ce que c'est -->
     <header class="hero rise">
       <span class="kicker">Simulateur de risque cyber · PME</span>
       <h1 class="hero__title">
@@ -70,7 +67,6 @@ const etapes = [
       </p>
     </header>
 
-    <!-- Actions : quoi faire -->
     <div class="actions">
       <button class="action rise" style="animation-delay: 90ms" :disabled="!!loading" @click="creerDeZero">
         <span class="action__title">Créer de zéro</span>
@@ -92,7 +88,6 @@ const etapes = [
 
     <p v-if="error" class="error">{{ error }}</p>
 
-    <!-- Comment ça marche : c'est explicite -->
     <div class="how rise" style="animation-delay: 220ms">
       <h2 class="how__title">Comment ça marche</h2>
       <ol class="steps">

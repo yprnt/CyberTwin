@@ -1,5 +1,4 @@
-/* Styles de base CyberTwin — reset léger + éléments natifs tokenisés.
-   Importé après tokens.css dans main.js. */
+/* Reset + éléments natifs tokenisés. Importé après tokens.css (main.js). */
 
 *,
 *::before,
@@ -17,7 +16,7 @@ html {
 
 body {
   font-family: var(--font);
-  /* Fond + halo d'accent très subtil en haut pour casser le côté plat. */
+  /* Halo d'accent subtil en haut. */
   background:
     radial-gradient(
       1100px 520px at 88% -8%,
@@ -30,7 +29,7 @@ body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  /* Transition douce lors du basculement clair/sombre. */
+  /* Adoucit le basculement clair/sombre. */
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
@@ -119,6 +118,64 @@ th {
 }
 tbody tr:last-child td {
   border-bottom: none;
+}
+/* À envelopper autour d'une <table> : permet le défilement horizontal sur
+   petit écran au lieu de tronquer les dernières colonnes (actions). */
+.table-scroll {
+  overflow-x: auto;
+}
+.table-scroll table {
+  min-width: 460px;
+}
+
+/* --- Utilitaires partagés par les vues --------------------------------- */
+.page__head {
+  margin-bottom: 1.25rem;
+}
+.page__sub {
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+.muted {
+  color: var(--text-muted);
+}
+.center {
+  text-align: center;
+}
+.strong {
+  font-weight: 600;
+}
+/* Message d'état (erreur/succès) au-dessus ou sous un formulaire/liste. */
+.msg {
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  margin: 0 0 1rem;
+  font-size: 0.92rem;
+}
+.msg--error {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+.msg--ok {
+  color: var(--success);
+  background: var(--success-soft);
+}
+/* Bouton-lien discret (actions de table). */
+.link {
+  width: auto;
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+  font-size: 0.9rem;
+}
+.link:hover {
+  text-decoration: underline;
+}
+.link--danger {
+  color: var(--danger);
 }
 
 /* --- Transition entre les pages (route) -------------------------------- */

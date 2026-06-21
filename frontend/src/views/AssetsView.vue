@@ -1,9 +1,6 @@
 <script setup>
-// Vue Actifs : liste + ajout / édition / suppression.
-//  - type = select des 6 valeurs exactes attendues par l'API.
-//  - expose = checkbox.
-//  - Après suppression d'un actif, recharger les vulnérabilités (cascade R3).
-//  - Jamais d'id en POST (R1) : create n'envoie que nom/type/expose.
+// Vue Actifs. Les 6 types sont les valeurs exactes attendues par l'API.
+// Après suppression, recharger les vulns (cascade R3) ; pas d'id en POST (R1).
 import { onMounted, reactive, ref } from 'vue'
 import { useAssetsStore } from '../stores/assets'
 import { useVulnerabilitiesStore } from '../stores/vulnerabilities'
@@ -97,7 +94,7 @@ async function supprimer(asset) {
           </label>
         </div>
         <div class="actions">
-          <BaseButton type="submit">{{ editId !== null ? 'Enregistrer' : 'Ajouter' }}</BaseButton>
+          <BaseButton type="submit" :disabled="store.loading">{{ editId !== null ? 'Enregistrer' : 'Ajouter' }}</BaseButton>
           <BaseButton v-if="editId !== null" type="button" variant="ghost" @click="reinit">
             Annuler
           </BaseButton>
@@ -113,6 +110,7 @@ async function supprimer(asset) {
     </BaseCard>
 
     <BaseCard v-else>
+      <div class="table-scroll">
       <table>
         <thead>
           <tr>
@@ -138,18 +136,12 @@ async function supprimer(asset) {
           </tr>
         </tbody>
       </table>
+      </div>
     </BaseCard>
   </section>
 </template>
 
 <style scoped>
-.page__head {
-  margin-bottom: 1.25rem;
-}
-.page__sub {
-  color: var(--text-muted);
-  margin-top: 0.25rem;
-}
 .mb {
   margin-bottom: 1rem;
 }
@@ -186,45 +178,14 @@ async function supprimer(asset) {
   display: flex;
   gap: 0.6rem;
 }
+/* Cellule d'actions : rester un vrai td (pas de display:flex, sinon la cellule
+   sort du layout de tableau et déborde de la carte). */
 .td-actions {
-  display: flex;
-  gap: 0.9rem;
-  justify-content: flex-end;
+  text-align: right;
+  white-space: nowrap;
 }
-.strong {
-  font-weight: 600;
-}
-.link {
-  width: auto;
-  background: none;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
-  padding: 0;
-  font: inherit;
-  font-size: 0.9rem;
-}
-.link:hover {
-  text-decoration: underline;
-}
-.link--danger {
-  color: var(--danger);
-}
-.muted {
-  color: var(--text-muted);
-}
-.center {
-  text-align: center;
-}
-.msg {
-  padding: 0.6rem 0.8rem;
-  border-radius: var(--radius);
-  margin: 0 0 1rem;
-  font-size: 0.92rem;
-}
-.msg--error {
-  color: var(--danger);
-  background: var(--danger-soft);
+.td-actions .link + .link {
+  margin-left: 0.9rem;
 }
 @media (max-width: 600px) {
   .field.grow {

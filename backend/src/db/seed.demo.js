@@ -1,5 +1,4 @@
-// seed.demo.js — données de démonstration « Boréale Logistique ».
-// 6 actifs (dont 3 exposés), 5 vulnérabilités (2 élevée, 2 moyenne, 1 faible).
+// Données de démo « Boréale Logistique ».
 // Les noms de vulns sont choisis pour déclencher les recommandations du moteur
 // (obsolète, mot de passe, port, sauvegarde).
 
@@ -12,7 +11,7 @@ const demoCompany = {
   servicesExposes: ['Site web', 'Webmail', 'Extranet client', 'VPN'],
 };
 
-// `ref` = clé locale pour relier les vulns aux actifs (les vrais id sont générés à l'insert).
+// `ref` : clé locale pour relier les vulns aux actifs (les vrais id sont générés à l'insert).
 const demoAssets = [
   { ref: 'vitrine', nom: 'Serveur du site vitrine', type: 'Serveur Web', expose: true },
   { ref: 'webmail', nom: 'Serveur de messagerie', type: 'Serveur Web', expose: true },

@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-// Squelette de navigation (Phase 1). Le contenu réel de chaque vue arrive
-// dans les phases suivantes (CRUD, dashboard, rapport).
+// Vues chargées en lazy (import dynamique) -> un chunk JS par page.
 const routes = [
   {
     path: '/',
