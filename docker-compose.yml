@@ -1,0 +1,25 @@
+# docker-compose.yml — base de données MySQL 8 pour CyberTwin.
+# Démarrer :  docker compose up -d
+# Arrêter   :  docker compose down        (ajouter -v pour effacer les données)
+#
+# character-set-server=utf8mb4 est OBLIGATOIRE : sans ça les accents
+# (« élevée », « Base de données », « Pare-feu ») sont cassés en base.
+
+services:
+  mysql:
+    image: mysql:8
+    container_name: cybertwin-mysql
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: cybertwin
+      MYSQL_USER: cybertwin
+      MYSQL_PASSWORD: cybertwin
+    ports:
+      - "3306:3306"
+    volumes:
+      - cybertwin_mysql_data:/var/lib/mysql
+
+volumes:
+  cybertwin_mysql_data:
