@@ -9,6 +9,7 @@ const companyRoutes = require('./routes/company.routes');
 const assetsRoutes = require('./routes/assets.routes');
 const vulnerabilitiesRoutes = require('./routes/vulnerabilities.routes');
 const riskRoutes = require('./routes/risk.routes');
+const demoRoutes = require('./routes/demo.routes');
 
 const app = express();
 
@@ -28,5 +29,6 @@ app.use('/company', companyRoutes);
 app.use('/assets', assetsRoutes);
 app.use('/vulnerabilities', vulnerabilitiesRoutes);
 app.use('/risk', riskRoutes);
+app.use('/demo', demoRoutes);
 
 module.exports = app;
