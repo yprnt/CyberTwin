@@ -1,8 +1,5 @@
-// Gestion du thème clair / sombre.
-// État partagé (ref au niveau module = singleton) : tous les composants qui
-// appellent useTheme() lisent/écrivent le même thème.
-// Clair par défaut, choix persisté dans localStorage, appliqué via l'attribut
-// data-theme sur <html> (les tokens CSS font le reste).
+// Thème clair / sombre. ref au niveau module = état partagé entre tous les
+// appels useTheme(). Persisté dans localStorage, appliqué via data-theme sur <html>.
 import { computed, ref } from 'vue'
 
 const STORAGE_KEY = 'cybertwin-theme'
@@ -18,7 +15,7 @@ function appliquer(valeur) {
   localStorage.setItem(STORAGE_KEY, valeur)
 }
 
-// Applique dès le chargement du module (cohérent avec le script anti-flash de index.html).
+// Appliqué dès l'import, cohérent avec le script anti-flash de index.html.
 appliquer(theme.value)
 
 export function useTheme() {

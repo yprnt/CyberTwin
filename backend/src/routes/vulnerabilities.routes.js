@@ -1,5 +1,3 @@
-// vulnerabilities.routes.js — routes /vulnerabilities (montées dans app.js).
-
 const express = require('express');
 
 const {
@@ -8,10 +6,11 @@ const {
   deleteVulnerability,
 } = require('../controllers/vulnerabilities.controller');
 
-const router = express.Router();
+// mergeParams : accéder à :companyId du routeur parent (companies.routes).
+const router = express.Router({ mergeParams: true });
 
-router.get('/', getVulnerabilities); // GET    /vulnerabilities
-router.post('/', createVulnerability); // POST   /vulnerabilities
-router.delete('/:id', deleteVulnerability); // DELETE /vulnerabilities/:id
+router.get('/', getVulnerabilities);
+router.post('/', createVulnerability);
+router.delete('/:vulnId', deleteVulnerability);
 
 module.exports = router;

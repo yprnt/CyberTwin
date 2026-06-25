@@ -1,9 +1,10 @@
-// assets.controller.js — logique des routes /assets (CRUD complet).
+// Actifs d'une entreprise. req.companyId est posé par loadCompany (appartenance
+// déjà vérifiée) : toutes les requêtes filtrent dessus pour rester isolées.
 
 const pool = require('../db/pool');
 const { ASSET_TYPES } = require('../constants');
 
-// MySQL renvoie `expose` en 0/1 (tinyint) : on le repasse en vrai booléen pour le front.
+// MySQL renvoie expose en 0/1 (tinyint) : on le repasse en booléen pour le front
 function normalizeAsset(row) {
   return {
     id: row.id,
@@ -13,22 +14,23 @@ function normalizeAsset(row) {
   };
 }
 
-// Interprète une valeur `expose` venant du body en booléen.
 function parseExpose(value) {
   return value === true || value === 'true' || value === 1;
 }
 
-// GET /assets — liste tous les actifs ([] si aucun).
 async function getAssets(req, res) {
   try {
-    const [rows] = await pool.query('SELECT id, nom, type, expose FROM assets ORDER BY id');
+    const [rows] = await pool.query(
+      'SELECT id, nom, type, expose FROM assets WHERE companyId = ? ORDER BY id',
+      [req.companyId]
+    );
     res.json(rows.map(normalizeAsset));
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'Erreur serveur lors de la lecture des actifs.' });
   }
 }
 
-// POST /assets — crée un actif (id généré par la base).
 async function createAsset(req, res) {
   const body = req.body || {};
   const nom = typeof body.nom === 'string' ? body.nom.trim() : '';
@@ -43,35 +45,38 @@ async function createAsset(req, res) {
     });
   }
 
-  const expose = parseExpose(body.expose); // false si non fourni
+  const expose = parseExpose(body.expose);
 
   try {
     const [result] = await pool.query(
-      'INSERT INTO assets (nom, type, expose) VALUES (?, ?, ?)',
-      [nom, type, expose ? 1 : 0]
+      'INSERT INTO assets (companyId, nom, type, expose) VALUES (?, ?, ?, ?)',
+      [req.companyId, nom, type, expose ? 1 : 0]
     );
     res.status(201).json({ id: result.insertId, nom, type, expose });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Erreur serveur lors de la création de l'actif." });
   }
 }
 
-// PUT /assets/:id — modifie un actif (champs partiels).
+// PUT partiel : on part de l'existant (scopé à l'entreprise) et on remplace les champs fournis.
 async function updateAsset(req, res) {
-  const id = Number(req.params.id);
+  const id = Number(req.params.assetId);
   if (!Number.isInteger(id)) {
     return res.status(404).json({ message: 'Actif introuvable.' });
   }
 
   try {
-    const [rows] = await pool.query('SELECT id, nom, type, expose FROM assets WHERE id = ?', [id]);
+    const [rows] = await pool.query(
+      'SELECT id, nom, type, expose FROM assets WHERE id = ? AND companyId = ?',
+      [id, req.companyId]
+    );
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Actif introuvable.' });
     }
     const current = rows[0];
     const body = req.body || {};
 
-    // On part des valeurs actuelles, puis on remplace celles fournies.
     let nom = current.nom;
     if (body.nom !== undefined) {
       nom = typeof body.nom === 'string' ? body.nom.trim() : '';
@@ -95,32 +100,38 @@ async function updateAsset(req, res) {
       expose = parseExpose(body.expose);
     }
 
-    await pool.query('UPDATE assets SET nom = ?, type = ?, expose = ? WHERE id = ?', [
+    await pool.query('UPDATE assets SET nom = ?, type = ?, expose = ? WHERE id = ? AND companyId = ?', [
       nom,
       type,
       expose ? 1 : 0,
       id,
+      req.companyId,
     ]);
     res.json({ id, nom, type, expose });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Erreur serveur lors de la mise à jour de l'actif." });
   }
 }
 
-// DELETE /assets/:id — supprime un actif ET ses vulnérabilités (cascade SQL, règle R3).
+// supprime l'actif ET ses vulnérabilités (cascade SQL, règle R3)
 async function deleteAsset(req, res) {
-  const id = Number(req.params.id);
+  const id = Number(req.params.assetId);
   if (!Number.isInteger(id)) {
     return res.status(404).json({ message: 'Actif introuvable.' });
   }
 
   try {
-    const [result] = await pool.query('DELETE FROM assets WHERE id = ?', [id]);
+    const [result] = await pool.query('DELETE FROM assets WHERE id = ? AND companyId = ?', [
+      id,
+      req.companyId,
+    ]);
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Actif introuvable.' });
     }
     res.json({ message: 'Actif supprimé.' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Erreur serveur lors de la suppression de l'actif." });
   }
 }

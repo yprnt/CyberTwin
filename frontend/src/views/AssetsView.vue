@@ -1,12 +1,11 @@
 <script setup>
-// Vue Actifs : liste + ajout / édition / suppression.
-//  - type = select des 6 valeurs exactes attendues par l'API.
-//  - expose = checkbox.
-//  - Après suppression d'un actif, recharger les vulnérabilités (cascade R3).
-//  - Jamais d'id en POST (R1) : create n'envoie que nom/type/expose.
-import { onMounted, reactive, ref } from 'vue'
+// Vue Actifs. Les 6 types sont les valeurs exactes attendues par l'API.
+// Après suppression, recharger les vulns (cascade R3) ; pas d'id en POST (R1).
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAssetsStore } from '../stores/assets'
 import { useVulnerabilitiesStore } from '../stores/vulnerabilities'
+import { useConfirm } from '../composables/useConfirm'
 import BaseCard from '../components/BaseCard.vue'
 import BaseButton from '../components/BaseButton.vue'
 import BaseBadge from '../components/BaseBadge.vue'
@@ -22,11 +21,14 @@ const TYPES = [
 
 const store = useAssetsStore()
 const vulnsStore = useVulnerabilitiesStore()
+const { confirm } = useConfirm()
+const route = useRoute()
 
+const companyId = computed(() => route.params.id)
 const editId = ref(null)
 const form = reactive({ nom: '', type: TYPES[0], expose: false })
 
-onMounted(() => store.fetchAll())
+onMounted(() => store.fetchAll(companyId.value))
 
 function reinit() {
   editId.value = null
@@ -44,24 +46,31 @@ function editer(asset) {
 
 async function soumettre() {
   const payload = { nom: form.nom, type: form.type, expose: form.expose }
+  const modification = editId.value !== null
   try {
-    if (editId.value !== null) await store.update(editId.value, payload)
-    else await store.create(payload)
+    if (modification) await store.update(companyId.value, editId.value, payload)
+    else await store.create(companyId.value, payload)
     reinit()
   } catch {
-    // store.error déjà renseigné et affiché.
+    // Pas de toast (éviter le flood) : l'erreur s'affiche en ligne via store.error.
   }
 }
 
 async function supprimer(asset) {
-  if (!confirm(`Supprimer l'actif « ${asset.nom} » et ses vulnérabilités ?`)) return
+  const ok = await confirm({
+    title: "Supprimer l'actif",
+    message: `« ${asset.nom} » et ses vulnérabilités associées seront supprimés.`,
+    confirmLabel: 'Supprimer',
+    danger: true,
+  })
+  if (!ok) return
   try {
-    await store.remove(asset.id)
+    await store.remove(companyId.value, asset.id)
     // Cascade R3 : les vulns de cet actif ont disparu côté back → resync.
-    await vulnsStore.fetchAll()
+    await vulnsStore.fetchAll(companyId.value)
     if (editId.value === asset.id) reinit()
   } catch {
-    // store.error déjà renseigné et affiché.
+    // store.error affiché en ligne.
   }
 }
 </script>
@@ -70,16 +79,16 @@ async function supprimer(asset) {
   <section class="page">
     <header class="page__head">
       <h1>Actifs</h1>
-      <p class="page__sub">Inventaire du parc à protéger.</p>
+      <p class="page__sub">Recensez les équipements informatiques de votre organisation.</p>
     </header>
 
-    <BaseCard class="mb">
-      <template #header>
-        <h2>{{ editId !== null ? "Modifier l'actif" : 'Ajouter un actif' }}</h2>
-        <BaseBadge v-if="editId !== null" ton="accent">Édition</BaseBadge>
-      </template>
-
-      <form class="form" @submit.prevent="soumettre">
+    <form class="sheet mb" @submit.prevent="soumettre">
+      <section class="sec">
+        <div class="sec__head">
+          <span class="eyebrow">{{ editId !== null ? "Modifier l'actif" : 'Ajouter un actif' }}</span>
+          <BaseBadge v-if="editId !== null" ton="accent">Édition</BaseBadge>
+        </div>
+        <p class="grp-help">Un actif = un équipement informatique. Cochez « Exposé à Internet » s'il est accessible depuis l'extérieur.</p>
         <div class="row">
           <label class="field grow">
             <span>Nom</span>
@@ -91,19 +100,20 @@ async function supprimer(asset) {
               <option v-for="t in TYPES" :key="t" :value="t">{{ t }}</option>
             </select>
           </label>
-          <label class="field check">
+          <label class="toggle">
             <input v-model="form.expose" type="checkbox" />
-            <span>Exposé à Internet</span>
+            <span class="toggle__track"><span class="toggle__thumb"></span></span>
+            <span class="toggle__label">Exposé à Internet</span>
           </label>
         </div>
-        <div class="actions">
-          <BaseButton type="submit">{{ editId !== null ? 'Enregistrer' : 'Ajouter' }}</BaseButton>
-          <BaseButton v-if="editId !== null" type="button" variant="ghost" @click="reinit">
-            Annuler
-          </BaseButton>
-        </div>
-      </form>
-    </BaseCard>
+      </section>
+      <div class="foot">
+        <BaseButton type="submit" :disabled="store.loading">{{ editId !== null ? 'Enregistrer' : 'Ajouter' }}</BaseButton>
+        <BaseButton v-if="editId !== null" type="button" variant="ghost" @click="reinit">
+          Annuler
+        </BaseButton>
+      </div>
+    </form>
 
     <p v-if="store.error" class="msg msg--error">{{ store.error }}</p>
 
@@ -113,6 +123,7 @@ async function supprimer(asset) {
     </BaseCard>
 
     <BaseCard v-else>
+      <div class="table-scroll">
       <table>
         <thead>
           <tr>
@@ -138,25 +149,46 @@ async function supprimer(asset) {
           </tr>
         </tbody>
       </table>
+      </div>
     </BaseCard>
   </section>
 </template>
 
 <style scoped>
-.page__head {
-  margin-bottom: 1.25rem;
-}
-.page__sub {
-  color: var(--text-muted);
-  margin-top: 0.25rem;
-}
 .mb {
   margin-bottom: 1rem;
 }
-.form {
+/* Panneau de formulaire cohérent avec la page Entreprise (Design 2). */
+.sheet {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.sec {
+  padding: 1.5rem 1.6rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+.sec__head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text);
+}
+.grp-help {
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  margin-top: -0.65rem;
 }
 .row {
   display: flex;
@@ -176,55 +208,70 @@ async function supprimer(asset) {
   font-weight: 600;
   font-size: 0.85rem;
 }
-.field.check {
-  flex-direction: row;
+/* Interrupteur « Exposé à Internet ». */
+.toggle {
+  display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  padding-bottom: 0.6rem;
+  gap: 0.6rem;
+  cursor: pointer;
+  padding-bottom: 0.55rem;
+  user-select: none;
 }
-.actions {
+.toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.toggle__track {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.toggle__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.18s ease;
+}
+.toggle input:checked + .toggle__track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.toggle input:checked + .toggle__track .toggle__thumb {
+  transform: translateX(18px);
+}
+.toggle input:focus-visible + .toggle__track {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.toggle__label {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.foot {
+  padding: 1.1rem 1.6rem;
+  border-top: 1px solid var(--border);
   display: flex;
   gap: 0.6rem;
 }
+/* Cellule d'actions : rester un vrai td (pas de display:flex, sinon la cellule
+   sort du layout de tableau et déborde de la carte). */
 .td-actions {
-  display: flex;
-  gap: 0.9rem;
-  justify-content: flex-end;
+  text-align: right;
+  white-space: nowrap;
 }
-.strong {
-  font-weight: 600;
-}
-.link {
-  width: auto;
-  background: none;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
-  padding: 0;
-  font: inherit;
-  font-size: 0.9rem;
-}
-.link:hover {
-  text-decoration: underline;
-}
-.link--danger {
-  color: var(--danger);
-}
-.muted {
-  color: var(--text-muted);
-}
-.center {
-  text-align: center;
-}
-.msg {
-  padding: 0.6rem 0.8rem;
-  border-radius: var(--radius);
-  margin: 0 0 1rem;
-  font-size: 0.92rem;
-}
-.msg--error {
-  color: var(--danger);
-  background: var(--danger-soft);
+.td-actions .link + .link {
+  margin-left: 0.9rem;
 }
 @media (max-width: 600px) {
   .field.grow {

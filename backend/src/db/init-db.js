@@ -1,12 +1,5 @@
-// init-db.js — (ré)initialise la base à partir de schema.sql.
-//
-//   npm run db:init
-//
-// Se connecte en ROOT *sans* base sélectionnée (le script fait lui-même
-// DROP DATABASE / CREATE DATABASE / USE) et exécute tout le fichier d'un coup
-// grâce à `multipleStatements: true`.
-//
-// Prérequis : le conteneur MySQL doit tourner (docker compose up -d).
+// npm run db:init — (ré)initialise la base à partir de schema.sql.
+// Connexion ROOT sans base sélectionnée : c'est schema.sql qui fait DROP/CREATE/USE.
 
 require('dotenv').config();
 
@@ -24,8 +17,8 @@ async function main() {
     port: Number(process.env.DB_PORT) || 3306,
     user: process.env.DB_ROOT_USER || 'root',
     password: process.env.DB_ROOT_PASSWORD || 'root',
-    multipleStatements: true, // indispensable : schema.sql contient plusieurs requêtes
-    charset: 'utf8mb4_unicode_ci',
+    multipleStatements: true, // indispensable : schema.sql enchaîne plusieurs requêtes
+    charset: 'utf8mb4',
   });
 
   try {

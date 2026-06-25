@@ -1,26 +1,56 @@
 <script setup>
-// Layout racine : barre de navigation commune + bascule de thème + vue active.
+import { computed, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import ThemeToggle from './components/ThemeToggle.vue'
+import ToastHost from './components/ToastHost.vue'
+import ConfirmDialog from './components/ConfirmDialog.vue'
+import { useAuthStore } from './stores/auth'
+import { useToasts } from './composables/useToasts'
 
+const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
+const toasts = useToasts()
+
+// Nav primaire : les pages d'une entreprise vivent dans la sous-nav de CompanyLayout.
 const liens = [
   { to: '/', label: 'Accueil' },
-  { to: '/entreprise', label: 'Entreprise' },
-  { to: '/actifs', label: 'Actifs' },
-  { to: '/vulnerabilites', label: 'Vulnérabilités' },
-  { to: '/tableau-de-bord', label: 'Tableau de bord' },
-  { to: '/rapport', label: 'Rapport' },
+  { to: '/entreprises', label: 'Entreprises' },
 ]
+
+// Accueil public : la barre est masquée seulement sur la page de connexion.
+const afficherBarre = computed(() => route.name !== 'login')
+const connecte = computed(() => !!auth.token)
+
+function deconnexion() {
+  auth.logout()
+  toasts.info('Vous êtes déconnecté.')
+  router.push('/')
+}
+
+// Jeton expiré détecté par http.js en cours de session : on nettoie et on renvoie au login.
+function surExpiration() {
+  auth.logout()
+  toasts.error('Session expirée, reconnectez-vous.')
+  router.push({ name: 'login' })
+}
+
+onMounted(() => {
+  auth.restore()
+  window.addEventListener('auth:expired', surExpiration)
+})
+onUnmounted(() => window.removeEventListener('auth:expired', surExpiration))
 </script>
 
 <template>
-  <header class="topbar no-print">
+  <header v-if="afficherBarre" class="topbar no-print">
     <div class="topbar__inner">
       <RouterLink to="/" class="brand">
         <span class="brand__glyph" aria-hidden="true">◈</span>
         <span class="brand__name">CyberTwin</span>
       </RouterLink>
 
-      <nav class="nav">
+      <nav class="nav" aria-label="Navigation principale">
         <RouterLink
           v-for="lien in liens"
           :key="lien.to"
@@ -31,7 +61,29 @@ const liens = [
         </RouterLink>
       </nav>
 
-      <ThemeToggle />
+      <div class="topbar__actions">
+        <ThemeToggle />
+        <template v-if="connecte">
+          <button
+            class="logout"
+            type="button"
+            title="Se déconnecter"
+            aria-label="Se déconnecter"
+            @click="deconnexion"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+              <path d="M15 4h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-3" stroke-linecap="round" />
+              <path d="M10 8l-4 4 4 4M6 12h11" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        </template>
+        <template v-else>
+          <RouterLink :to="{ name: 'login' }" class="auth-link">Connexion</RouterLink>
+          <RouterLink :to="{ name: 'login', query: { mode: 'register' } }" class="auth-cta">
+            Créer un compte
+          </RouterLink>
+        </template>
+      </div>
     </div>
   </header>
 
@@ -42,6 +94,9 @@ const liens = [
       </Transition>
     </RouterView>
   </main>
+
+  <ToastHost />
+  <ConfirmDialog />
 </template>
 
 <style scoped>
@@ -91,6 +146,55 @@ const liens = [
   gap: 0.25rem;
   flex-wrap: wrap;
   margin-right: auto;
+}
+.topbar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+/* Boutons d'auth à l'échelle de la barre (cohérents avec .nav-link). */
+.auth-link,
+.auth-cta {
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.42rem 0.85rem;
+  border-radius: var(--radius);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.auth-link {
+  color: var(--text-muted);
+}
+.auth-link:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  text-decoration: none;
+}
+.auth-cta {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+.auth-cta:hover {
+  background: var(--accent-hover);
+  text-decoration: none;
+}
+.logout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.logout:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 .nav-link {
   color: var(--text-muted);

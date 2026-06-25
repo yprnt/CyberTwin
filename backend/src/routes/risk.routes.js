@@ -1,11 +1,18 @@
-// risk.routes.js — routes /risk (montées sous /risk dans app.js).
-
 const express = require('express');
 
-const { calculateRisk } = require('../controllers/risk.controller');
+const {
+  calculateRisk,
+  saveSnapshot,
+  getHistory,
+  clearHistory,
+} = require('../controllers/risk.controller');
 
-const router = express.Router();
+// mergeParams : accéder à :companyId du routeur parent (companies.routes).
+const router = express.Router({ mergeParams: true });
 
-router.post('/calculate', calculateRisk); // POST /risk/calculate
+router.post('/calculate', calculateRisk);
+router.post('/snapshot', saveSnapshot);
+router.get('/history', getHistory);
+router.delete('/history', clearHistory);
 
 module.exports = router;

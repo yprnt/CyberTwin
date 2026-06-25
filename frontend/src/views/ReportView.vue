@@ -1,37 +1,38 @@
 <script setup>
-// Vue Rapport : synthèse imprimable, volontairement sobre (mise en page
-// « document », couleur réduite à de discrètes pastilles de ton). Charge
-// entreprise + actifs + vulns et recalcule le risque (R5).
+// Vue Rapport : synthèse imprimable. Recalcule le risque (R5).
 import { computed, onMounted } from 'vue'
-import { useCompanyStore } from '../stores/company'
+import { useRoute } from 'vue-router'
+import { useCompaniesStore } from '../stores/companies'
 import { useAssetsStore } from '../stores/assets'
 import { useVulnerabilitiesStore } from '../stores/vulnerabilities'
 import { useRiskStore } from '../stores/risk'
 import { tonNiveau, tonCriticite } from '../utils/niveau'
 import BaseButton from '../components/BaseButton.vue'
 
-const companyStore = useCompanyStore()
+const route = useRoute()
+const companiesStore = useCompaniesStore()
 const assetsStore = useAssetsStore()
 const vulnsStore = useVulnerabilitiesStore()
 const riskStore = useRiskStore()
 
+const companyId = computed(() => route.params.id)
+
 onMounted(async () => {
+  // l'entreprise est déjà chargée par CompanyLayout (companiesStore.current)
   await Promise.all([
-    companyStore.fetch(),
-    assetsStore.fetchAll(),
-    vulnsStore.fetchAll(),
-    riskStore.calculate(),
+    assetsStore.fetchAll(companyId.value),
+    vulnsStore.fetchAll(companyId.value),
+    riskStore.calculate(companyId.value),
   ])
 })
 
-const company = computed(() => companyStore.company)
+const company = computed(() => companiesStore.current)
 const resultat = computed(() => riskStore.result)
 
 function nomActif(assetId) {
   const a = assetsStore.list.find((x) => x.id === assetId)
   return a ? a.nom : 'Actif inconnu'
 }
-// Pastille de ton discrète (1 seule touche de couleur par ligne).
 const dot = (ton) => `var(--${ton})`
 
 function imprimer() {
@@ -66,7 +67,6 @@ const dateDuJour = new Date().toLocaleDateString('fr-FR', {
         <p class="sheet__date">{{ dateDuJour }}</p>
       </header>
 
-      <!-- Bandeau synthèse : sobre, une seule pastille de ton. -->
       <div v-if="resultat" class="summary">
         <div class="summary__score">
           <span class="summary__num">{{ resultat.score }}</span>
@@ -151,11 +151,6 @@ const dateDuJour = new Date().toLocaleDateString('fr-FR', {
   gap: 1rem;
   margin-bottom: 1.25rem;
 }
-.page__sub {
-  color: var(--text-muted);
-  margin-top: 0.25rem;
-}
-
 .sheet {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -288,19 +283,6 @@ const dateDuJour = new Date().toLocaleDateString('fr-FR', {
   margin-bottom: 0.5rem;
   line-height: 1.55;
 }
-.muted {
-  color: var(--text-muted);
-}
-.msg {
-  padding: 0.6rem 0.8rem;
-  border-radius: var(--radius);
-  margin: 0 0 1rem;
-}
-.msg--error {
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-
 @media print {
   .sheet {
     border: none;

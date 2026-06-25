@@ -1,5 +1,3 @@
-// assets.routes.js — routes /assets (montées sous /assets dans app.js).
-
 const express = require('express');
 
 const {
@@ -9,11 +7,12 @@ const {
   deleteAsset,
 } = require('../controllers/assets.controller');
 
-const router = express.Router();
+// mergeParams : accéder à :companyId du routeur parent (companies.routes).
+const router = express.Router({ mergeParams: true });
 
-router.get('/', getAssets); // GET    /assets
-router.post('/', createAsset); // POST   /assets
-router.put('/:id', updateAsset); // PUT    /assets/:id
-router.delete('/:id', deleteAsset); // DELETE /assets/:id
+router.get('/', getAssets);
+router.post('/', createAsset);
+router.put('/:assetId', updateAsset);
+router.delete('/:assetId', deleteAsset);
 
 module.exports = router;

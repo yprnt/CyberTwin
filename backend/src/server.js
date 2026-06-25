@@ -1,5 +1,3 @@
-// server.js — point d'entrée : charge la config (.env) puis démarre le serveur HTTP.
-
 require('dotenv').config();
 
 const app = require('./app');

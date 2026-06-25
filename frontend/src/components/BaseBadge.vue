@@ -1,5 +1,5 @@
 <script setup>
-// Pastille colorée. ton : success | warning | danger | neutral | accent.
+// ton : success | warning | danger | neutral | accent.
 defineProps({
   ton: { type: String, default: 'neutral' },
 })

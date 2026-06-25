@@ -1,12 +1,7 @@
--- =====================================================================
---  CyberTwin — Script de création de la base de données
---  Cible : MySQL 8.0+ (les CHECK ne sont réellement appliqués qu'en 8.0.16+)
---  Lancement :  npm run db:init   (depuis backend/)
--- =====================================================================
+-- CyberTwin — création de la base. Cible MySQL 8.0.16+.
+-- Lancement : npm run db:init (depuis backend/)
 
--- 1. Création de la base
---    utf8mb4 est OBLIGATOIRE ici : sans ça les accents ("élevée",
---    "Base de données", "Pare-feu") sont cassés en base.
+-- utf8mb4 obligatoire : sinon les accents (« élevée », « Pare-feu ») cassent en base.
 DROP DATABASE IF EXISTS cybertwin;
 CREATE DATABASE cybertwin
     CHARACTER SET utf8mb4
@@ -14,45 +9,49 @@ CREATE DATABASE cybertwin
 
 USE cybertwin;
 
--- =====================================================================
--- 2. Table COMPANY (entreprise — singleton : une seule ligne, id = 1)
--- =====================================================================
-CREATE TABLE company (
-    id              INT PRIMARY KEY DEFAULT 1,
+-- USERS : comptes pour l'accès à l'application (auth JWT). passwordHash = bcrypt.
+CREATE TABLE users (
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    username     VARCHAR(64)  NOT NULL UNIQUE,   -- UNIQUE : un seul compte par identifiant
+    passwordHash VARCHAR(255) NOT NULL,
+    createdAt    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- COMPANIES : chaque utilisateur possède plusieurs entreprises (multi-entreprise).
+-- Supprimer un compte supprime ses entreprises (et, en cascade, leurs actifs/vulns/historique).
+CREATE TABLE companies (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    userId          INT          NOT NULL,
     nom             VARCHAR(255) NOT NULL DEFAULT '',
     secteur         VARCHAR(255) NOT NULL DEFAULT '',
     nbEmployes      INT          NOT NULL DEFAULT 0,
     nbServeurs      INT          NOT NULL DEFAULT 0,
     nbPostes        INT          NOT NULL DEFAULT 0,
     servicesExposes JSON         NOT NULL,            -- tableau JSON : ["Site web", "VPN"]
-    CONSTRAINT chk_company_singleton CHECK (id = 1)   -- interdit d'avoir 2 entreprises
+    createdAt       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_company_user
+        FOREIGN KEY (userId) REFERENCES users(id)
+        ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- Ligne vide de départ : GET /company renverra ces valeurs vides
--- tant que l'utilisateur n'a pas rempli le formulaire.
-INSERT INTO company (id, nom, secteur, nbEmployes, nbServeurs, nbPostes, servicesExposes)
-VALUES (1, '', '', 0, 0, 0, JSON_ARRAY());
-
--- =====================================================================
--- 3. Table ASSETS (actifs)
--- =====================================================================
 CREATE TABLE assets (
-    id     INT AUTO_INCREMENT PRIMARY KEY,        -- id auto-généré par MySQL
-    nom    VARCHAR(255) NOT NULL,
-    type   ENUM(                                  -- ENUM = validation au niveau base
+    id        INT AUTO_INCREMENT PRIMARY KEY,
+    companyId INT NOT NULL,                          -- entreprise propriétaire de l'actif
+    nom       VARCHAR(255) NOT NULL,
+    type      ENUM(                                  -- validation des types au niveau base
                 'Serveur Web',
                 'Base de données',
                 'Poste utilisateur',
                 'Routeur',
                 'Pare-feu',
                 'Application métier'
-           ) NOT NULL,
-    expose BOOLEAN NOT NULL DEFAULT FALSE          -- exposé sur Internet ?
+              ) NOT NULL,
+    expose    BOOLEAN NOT NULL DEFAULT FALSE,         -- exposé sur Internet ?
+    CONSTRAINT fk_asset_company
+        FOREIGN KEY (companyId) REFERENCES companies(id)
+        ON DELETE CASCADE      -- supprimer une entreprise supprime ses actifs (R3 étendue)
 ) ENGINE=InnoDB;
 
--- =====================================================================
--- 4. Table VULNERABILITIES (vulnérabilités)
--- =====================================================================
 CREATE TABLE vulnerabilities (
     id        INT AUTO_INCREMENT PRIMARY KEY,
     assetId   INT NOT NULL,
@@ -60,9 +59,20 @@ CREATE TABLE vulnerabilities (
     criticite ENUM('faible', 'moyenne', 'élevée') NOT NULL,
     CONSTRAINT fk_vuln_asset
         FOREIGN KEY (assetId) REFERENCES assets(id)
-        ON DELETE CASCADE      -- supprimer un actif supprime AUSSI ses vulnérabilités
+        ON DELETE CASCADE      -- supprimer un actif supprime aussi ses vulns (règle R3)
 ) ENGINE=InnoDB;
 
--- =====================================================================
---  Fin du script. Trois tables : company (1 ligne), assets, vulnerabilities.
--- =====================================================================
+-- RISK_HISTORY : snapshots de risque enregistrés volontairement, par entreprise.
+-- Le calcul du risque reste non stocké (R5) ; une ligne ici = une « analyse archivée ».
+CREATE TABLE risk_history (
+    id               INT AUTO_INCREMENT PRIMARY KEY,
+    companyId        INT         NOT NULL,
+    score            INT         NOT NULL,
+    niveau           VARCHAR(10) NOT NULL,
+    nbActifs         INT         NOT NULL,
+    nbVulnerabilites INT         NOT NULL,
+    createdAt        TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_history_company
+        FOREIGN KEY (companyId) REFERENCES companies(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB;

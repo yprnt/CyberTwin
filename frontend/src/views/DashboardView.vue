@@ -1,10 +1,7 @@
 <script setup>
-// Vue Tableau de bord : recalcule le risque (R5) à chaque ouverture puis
-// affiche stats + jauge + 3 graphiques complémentaires + recommandations.
-//   1. Actifs par type           (où se concentre le parc)
-//   2. Vulnérabilités par criticité (gravité des failles)
-//   3. Exposition des actifs      (surface d'attaque Internet)
-import { computed, onMounted } from 'vue'
+// Vue Tableau de bord : recalcule le risque (R5) à chaque ouverture, pour l'entreprise de l'URL.
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { Doughnut, Bar } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -18,10 +15,12 @@ import {
 import { useAssetsStore } from '../stores/assets'
 import { useVulnerabilitiesStore } from '../stores/vulnerabilities'
 import { useRiskStore } from '../stores/risk'
-import { useTheme } from '../composables/useTheme'
+import { useThemedColor } from '../composables/useThemedColor'
+import { useToasts } from '../composables/useToasts'
 import { tonNiveau } from '../utils/niveau'
 import BaseCard from '../components/BaseCard.vue'
 import BaseBadge from '../components/BaseBadge.vue'
+import BaseButton from '../components/BaseButton.vue'
 import StatTile from '../components/StatTile.vue'
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend)
@@ -29,31 +28,54 @@ ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Le
 const assetsStore = useAssetsStore()
 const vulnsStore = useVulnerabilitiesStore()
 const riskStore = useRiskStore()
-const { isDark } = useTheme()
+const themed = useThemedColor()
+const toasts = useToasts()
+const route = useRoute()
+
+const companyId = computed(() => route.params.id)
+const enregistrement = ref(false)
+
+// Archive l'état courant dans l'historique (snapshot explicite, voir store risk).
+async function enregistrerAnalyse() {
+  enregistrement.value = true
+  try {
+    await riskStore.saveSnapshot(companyId.value)
+    toasts.success('Analyse enregistrée dans l’historique.')
+  } catch (e) {
+    toasts.error(e.message)
+  } finally {
+    enregistrement.value = false
+  }
+}
 
 onMounted(async () => {
   await Promise.all([
-    assetsStore.fetchAll(),
-    vulnsStore.fetchAll(),
-    riskStore.calculate(),
+    assetsStore.fetchAll(companyId.value),
+    vulnsStore.fetchAll(companyId.value),
+    riskStore.calculate(companyId.value),
   ])
 })
 
 const resultat = computed(() => riskStore.result)
 const aDesActifs = computed(() => assetsStore.list.length > 0)
 const aDesVulns = computed(() => vulnsStore.list.length > 0)
+const nbExposes = computed(() => assetsStore.list.filter((a) => a.expose === true).length)
 
-// Couleurs dépendantes du thème (textes/grilles des axes et légendes).
-const txtColor = computed(() => (isDark.value ? '#e7ecf3' : '#1c2333'))
-const mutedColor = computed(() => (isDark.value ? '#94a3b8' : '#6b7280'))
-const gridColor = computed(() =>
-  isDark.value ? 'rgba(148,163,184,0.16)' : 'rgba(16,24,40,0.08)',
-)
-const segBorder = computed(() => (isDark.value ? '#1e293b' : '#ffffff'))
+const txtColor = themed('--text')
+const mutedColor = themed('--text-muted')
+const gridColor = themed('--border')
+const segBorder = themed('--surface')
 
-const PALETTE = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4']
+// Tons sémantiques, identiques aux badges et à la jauge.
+const cFaible = themed('--success')
+const cMoyenne = themed('--warning')
+const cElevee = themed('--danger')
+const cNeutral = themed('--neutral')
 
-// 1. Actifs par type ------------------------------------------------------
+// Palette catégorielle pour « actifs par type » : harmonisée avec l'accent
+// (émeraude/cyan en tête), couleurs distinctes sans équivalent token.
+const PALETTE = ['#059669', '#06b6d4', '#6366f1', '#8b5cf6', '#f59e0b', '#ef4444']
+
 const typeData = computed(() => {
   const par = {}
   for (const a of assetsStore.list) par[a.type] = (par[a.type] || 0) + 1
@@ -71,7 +93,6 @@ const typeData = computed(() => {
   }
 })
 
-// 2. Vulnérabilités par criticité ----------------------------------------
 const critData = computed(() => {
   const ordre = ['faible', 'moyenne', 'élevée']
   const par = { faible: 0, moyenne: 0, élevée: 0 }
@@ -81,7 +102,7 @@ const critData = computed(() => {
     datasets: [
       {
         data: ordre.map((c) => par[c]),
-        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+        backgroundColor: [cFaible.value, cMoyenne.value, cElevee.value],
         borderRadius: 6,
         maxBarThickness: 56,
       },
@@ -89,7 +110,6 @@ const critData = computed(() => {
   }
 })
 
-// 3. Exposition des actifs ------------------------------------------------
 const exposData = computed(() => {
   const exposes = assetsStore.list.filter((a) => a.expose === true).length
   const proteges = assetsStore.list.length - exposes
@@ -98,7 +118,7 @@ const exposData = computed(() => {
     datasets: [
       {
         data: [exposes, proteges],
-        backgroundColor: ['#f59e0b', '#94a3b8'],
+        backgroundColor: [cMoyenne.value, cNeutral.value],
         borderColor: segBorder.value,
         borderWidth: 2,
       },
@@ -109,9 +129,19 @@ const exposData = computed(() => {
 const doughnutOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
-  cutout: '62%',
+  cutout: '68%',
   plugins: {
-    legend: { position: 'bottom', labels: { color: txtColor.value, padding: 14, boxWidth: 12 } },
+    legend: {
+      position: 'bottom',
+      labels: {
+        color: txtColor.value,
+        padding: 16,
+        usePointStyle: true,
+        pointStyle: 'circle',
+        boxWidth: 8,
+        font: { size: 12 },
+      },
+    },
   },
 }))
 
@@ -132,13 +162,29 @@ const barOptions = computed(() => ({
 
 <template>
   <section class="page">
-    <header class="page__head">
-      <h1>Tableau de bord</h1>
-      <p class="page__sub">Synthèse du risque, recalculée à l'ouverture.</p>
+    <header class="page__head dash-head">
+      <div>
+        <h1>Tableau de bord</h1>
+        <p class="page__sub">Synthèse du risque, recalculée à l'ouverture.</p>
+      </div>
+      <BaseButton
+        v-if="resultat"
+        variant="primary"
+        :disabled="enregistrement"
+        @click="enregistrerAnalyse"
+      >
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+          <path d="M6 4h12a1 1 0 0 1 1 1v15l-7-4-7 4V5a1 1 0 0 1 1-1z" stroke-linejoin="round" />
+        </svg>
+        {{ enregistrement ? 'Enregistrement…' : "Enregistrer l'analyse" }}
+      </BaseButton>
     </header>
 
     <p v-if="riskStore.loading" class="muted">Calcul du risque…</p>
     <p v-if="riskStore.error" class="msg msg--error">{{ riskStore.error }}</p>
+    <p v-if="!resultat && !riskStore.loading && !riskStore.error" class="muted">
+      Aucune donnée à afficher pour le moment.
+    </p>
 
     <template v-if="resultat">
       <div class="tiles">
@@ -156,14 +202,14 @@ const barOptions = computed(() => ({
             </svg>
           </template>
         </StatTile>
-        <StatTile label="Score de risque" :value="resultat.score + ' / 100'" ton="accent" gradient>
+        <StatTile label="Exposés à Internet" :value="nbExposes" ton="warning">
           <template #icon>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9">
-              <path d="M4 14a8 8 0 0 1 16 0" /><line x1="12" y1="14" x2="16" y2="10" />
+              <circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18" />
             </svg>
           </template>
         </StatTile>
-        <StatTile label="Niveau" :ton="tonNiveau(resultat.niveau)">
+        <StatTile label="Niveau de risque" :ton="tonNiveau(resultat.niveau)">
           <template #icon>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9">
               <line x1="6" y1="20" x2="6" y2="14" /><line x1="12" y1="20" x2="12" y2="9" /><line x1="18" y1="20" x2="18" y2="4" />
@@ -223,12 +269,12 @@ const barOptions = computed(() => ({
 </template>
 
 <style scoped>
-.page__head {
-  margin-bottom: 1.25rem;
-}
-.page__sub {
-  color: var(--text-muted);
-  margin-top: 0.25rem;
+.dash-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 .tiles {
   display: grid;
@@ -324,21 +370,6 @@ const barOptions = computed(() => ({
   font-size: 0.94rem;
   line-height: 1.5;
   padding-top: 0.1rem;
-}
-.muted {
-  color: var(--text-muted);
-}
-.center {
-  text-align: center;
-}
-.msg {
-  padding: 0.6rem 0.8rem;
-  border-radius: var(--radius);
-  margin: 0 0 1rem;
-}
-.msg--error {
-  color: var(--danger);
-  background: var(--danger-soft);
 }
 @media (max-width: 760px) {
   .tiles {
