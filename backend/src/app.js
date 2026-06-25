@@ -3,12 +3,11 @@
 const express = require('express');
 const cors = require('cors');
 
-const companyRoutes = require('./routes/company.routes');
-const assetsRoutes = require('./routes/assets.routes');
-const vulnerabilitiesRoutes = require('./routes/vulnerabilities.routes');
-const riskRoutes = require('./routes/risk.routes');
+const authRoutes = require('./routes/auth.routes');
+const companiesRoutes = require('./routes/companies.routes');
 const demoRoutes = require('./routes/demo.routes');
 
+const requireAuth = require('./middlewares/requireAuth');
 const notFound = require('./middlewares/notFound');
 const errorHandler = require('./middlewares/errorHandler');
 
@@ -23,15 +22,17 @@ app.get('/', (req, res) => {
   res.json({ status: 'ok', service: 'CyberTwin API' });
 });
 
-app.use('/company', companyRoutes);
-app.use('/assets', assetsRoutes);
-app.use('/vulnerabilities', vulnerabilitiesRoutes);
-app.use('/risk', riskRoutes);
+// Routes publiques : health check (ci-dessus) + authentification.
+app.use('/auth', authRoutes);
+
+// À partir d'ici, tout exige un jeton valide (requireAuth pose req.user).
+app.use(requireAuth);
+
+// Entreprises de l'utilisateur + sous-ressources imbriquées (actifs, vulns, risque).
+app.use('/companies', companiesRoutes);
 app.use('/demo', demoRoutes);
 
-// après toutes les routes
 app.use(notFound);
-// monté en dernier
 app.use(errorHandler);
 
 module.exports = app;

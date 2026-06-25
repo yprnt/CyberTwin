@@ -1,35 +1,40 @@
 <script setup>
-// Accueil. « Créer de zéro » -> /demo/reset puis /entreprise ;
-// « Charger la démo » -> /demo/load puis /tableau-de-bord.
+// Accueil (héro). « Créer une entreprise » -> formulaire de création ;
+// « Charger la démo » -> crée une entreprise Boréale puis ouvre son tableau de bord.
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../services/api'
+import { useAuthStore } from '../stores/auth'
+import { useToasts } from '../composables/useToasts'
 
 const router = useRouter()
+const auth = useAuthStore()
+const toasts = useToasts()
 const loading = ref('')
 const error = ref('')
 
-async function creerDeZero() {
-  error.value = ''
-  loading.value = 'reset'
-  try {
-    await api.demoReset()
-    router.push('/entreprise')
-  } catch (e) {
-    error.value = e.message
-  } finally {
-    loading.value = ''
-  }
+// Accueil public : si pas connecté, ces actions renvoient d'abord vers la connexion
+// (en gardant la destination voulue pour y revenir après login).
+function versConnexion(redirect) {
+  router.push({ name: 'login', query: { redirect } })
+}
+
+function creerEntreprise() {
+  if (!auth.token) return versConnexion('/entreprises/nouveau')
+  router.push({ name: 'entreprise-nouveau' })
 }
 
 async function chargerDemo() {
+  if (!auth.token) return versConnexion('/entreprises')
   error.value = ''
   loading.value = 'load'
   try {
-    await api.demoLoad()
-    router.push('/tableau-de-bord')
+    const company = await api.demoLoad()
+    toasts.success('Démo « Boréale Logistique » chargée.')
+    router.push({ name: 'entreprise-fiche', params: { id: company.id } })
   } catch (e) {
     error.value = e.message
+    toasts.error(e.message)
   } finally {
     loading.value = ''
   }
@@ -68,12 +73,12 @@ const etapes = [
     </header>
 
     <div class="actions">
-      <button class="action rise" style="animation-delay: 90ms" :disabled="!!loading" @click="creerDeZero">
-        <span class="action__title">Créer de zéro</span>
+      <button class="action rise" style="animation-delay: 90ms" :disabled="!!loading" @click="creerEntreprise">
+        <span class="action__title">Créer une entreprise</span>
         <span class="action__desc">
           Partez d'une base vide et configurez votre entreprise pas à pas.
         </span>
-        <span class="action__cta">{{ loading === 'reset' ? 'Réinitialisation…' : 'Commencer →' }}</span>
+        <span class="action__cta">Commencer →</span>
       </button>
 
       <button class="action action--primary rise" style="animation-delay: 150ms" :disabled="!!loading" @click="chargerDemo">

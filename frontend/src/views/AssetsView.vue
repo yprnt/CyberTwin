@@ -1,9 +1,11 @@
 <script setup>
 // Vue Actifs. Les 6 types sont les valeurs exactes attendues par l'API.
 // Après suppression, recharger les vulns (cascade R3) ; pas d'id en POST (R1).
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAssetsStore } from '../stores/assets'
 import { useVulnerabilitiesStore } from '../stores/vulnerabilities'
+import { useConfirm } from '../composables/useConfirm'
 import BaseCard from '../components/BaseCard.vue'
 import BaseButton from '../components/BaseButton.vue'
 import BaseBadge from '../components/BaseBadge.vue'
@@ -19,11 +21,14 @@ const TYPES = [
 
 const store = useAssetsStore()
 const vulnsStore = useVulnerabilitiesStore()
+const { confirm } = useConfirm()
+const route = useRoute()
 
+const companyId = computed(() => route.params.id)
 const editId = ref(null)
 const form = reactive({ nom: '', type: TYPES[0], expose: false })
 
-onMounted(() => store.fetchAll())
+onMounted(() => store.fetchAll(companyId.value))
 
 function reinit() {
   editId.value = null
@@ -41,24 +46,31 @@ function editer(asset) {
 
 async function soumettre() {
   const payload = { nom: form.nom, type: form.type, expose: form.expose }
+  const modification = editId.value !== null
   try {
-    if (editId.value !== null) await store.update(editId.value, payload)
-    else await store.create(payload)
+    if (modification) await store.update(companyId.value, editId.value, payload)
+    else await store.create(companyId.value, payload)
     reinit()
   } catch {
-    // store.error déjà renseigné et affiché.
+    // Pas de toast (éviter le flood) : l'erreur s'affiche en ligne via store.error.
   }
 }
 
 async function supprimer(asset) {
-  if (!confirm(`Supprimer l'actif « ${asset.nom} » et ses vulnérabilités ?`)) return
+  const ok = await confirm({
+    title: "Supprimer l'actif",
+    message: `« ${asset.nom} » et ses vulnérabilités associées seront supprimés.`,
+    confirmLabel: 'Supprimer',
+    danger: true,
+  })
+  if (!ok) return
   try {
-    await store.remove(asset.id)
+    await store.remove(companyId.value, asset.id)
     // Cascade R3 : les vulns de cet actif ont disparu côté back → resync.
-    await vulnsStore.fetchAll()
+    await vulnsStore.fetchAll(companyId.value)
     if (editId.value === asset.id) reinit()
   } catch {
-    // store.error déjà renseigné et affiché.
+    // store.error affiché en ligne.
   }
 }
 </script>

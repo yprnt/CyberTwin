@@ -3,8 +3,8 @@
 // les 4 arguments (next inclus) sont obligatoires pour qu'Express reconnaisse un error-handler
 // eslint-disable-next-line no-unused-vars
 function errorHandler(err, req, res, next) {
-  // JSON malformé levé par express.json()
-  if (err.type === 'entity.parse.failed' || err instanceof SyntaxError) {
+  // JSON malformé levé par express.json() (ne pas attraper les autres SyntaxError applicatives)
+  if (err.type === 'entity.parse.failed') {
     return res.status(400).json({ message: 'Corps de requête JSON invalide.' });
   }
 

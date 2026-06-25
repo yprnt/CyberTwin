@@ -1,6 +1,7 @@
 <script setup>
-// Vue Tableau de bord : recalcule le risque (R5) à chaque ouverture.
-import { computed, onMounted } from 'vue'
+// Vue Tableau de bord : recalcule le risque (R5) à chaque ouverture, pour l'entreprise de l'URL.
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { Doughnut, Bar } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -14,10 +15,12 @@ import {
 import { useAssetsStore } from '../stores/assets'
 import { useVulnerabilitiesStore } from '../stores/vulnerabilities'
 import { useRiskStore } from '../stores/risk'
-import { useTheme } from '../composables/useTheme'
+import { useThemedColor } from '../composables/useThemedColor'
+import { useToasts } from '../composables/useToasts'
 import { tonNiveau } from '../utils/niveau'
 import BaseCard from '../components/BaseCard.vue'
 import BaseBadge from '../components/BaseBadge.vue'
+import BaseButton from '../components/BaseButton.vue'
 import StatTile from '../components/StatTile.vue'
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend)
@@ -25,13 +28,31 @@ ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Le
 const assetsStore = useAssetsStore()
 const vulnsStore = useVulnerabilitiesStore()
 const riskStore = useRiskStore()
-const { isDark } = useTheme()
+const themed = useThemedColor()
+const toasts = useToasts()
+const route = useRoute()
+
+const companyId = computed(() => route.params.id)
+const enregistrement = ref(false)
+
+// Archive l'état courant dans l'historique (snapshot explicite, voir store risk).
+async function enregistrerAnalyse() {
+  enregistrement.value = true
+  try {
+    await riskStore.saveSnapshot(companyId.value)
+    toasts.success('Analyse enregistrée dans l’historique.')
+  } catch (e) {
+    toasts.error(e.message)
+  } finally {
+    enregistrement.value = false
+  }
+}
 
 onMounted(async () => {
   await Promise.all([
-    assetsStore.fetchAll(),
-    vulnsStore.fetchAll(),
-    riskStore.calculate(),
+    assetsStore.fetchAll(companyId.value),
+    vulnsStore.fetchAll(companyId.value),
+    riskStore.calculate(companyId.value),
   ])
 })
 
@@ -39,17 +60,6 @@ const resultat = computed(() => riskStore.result)
 const aDesActifs = computed(() => assetsStore.list.length > 0)
 const aDesVulns = computed(() => vulnsStore.list.length > 0)
 const nbExposes = computed(() => assetsStore.list.filter((a) => a.expose === true).length)
-
-// Chart.js veut des couleurs concrètes, pas des var(--…). `themed` lit le token
-// CSS et le relit à chaque bascule de thème via la dépendance à isDark.
-function cssVar(name) {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-}
-const themed = (name) =>
-  computed(() => {
-    void isDark.value
-    return cssVar(name)
-  })
 
 const txtColor = themed('--text')
 const mutedColor = themed('--text-muted')
@@ -152,9 +162,22 @@ const barOptions = computed(() => ({
 
 <template>
   <section class="page">
-    <header class="page__head">
-      <h1>Tableau de bord</h1>
-      <p class="page__sub">Synthèse du risque, recalculée à l'ouverture.</p>
+    <header class="page__head dash-head">
+      <div>
+        <h1>Tableau de bord</h1>
+        <p class="page__sub">Synthèse du risque, recalculée à l'ouverture.</p>
+      </div>
+      <BaseButton
+        v-if="resultat"
+        variant="primary"
+        :disabled="enregistrement"
+        @click="enregistrerAnalyse"
+      >
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+          <path d="M6 4h12a1 1 0 0 1 1 1v15l-7-4-7 4V5a1 1 0 0 1 1-1z" stroke-linejoin="round" />
+        </svg>
+        {{ enregistrement ? 'Enregistrement…' : "Enregistrer l'analyse" }}
+      </BaseButton>
     </header>
 
     <p v-if="riskStore.loading" class="muted">Calcul du risque…</p>
@@ -246,6 +269,13 @@ const barOptions = computed(() => ({
 </template>
 
 <style scoped>
+.dash-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
 .tiles {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

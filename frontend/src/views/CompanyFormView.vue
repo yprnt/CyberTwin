@@ -1,10 +1,20 @@
 <script setup>
-// Vue Entreprise. Singleton (R2) : le mode « Créer » / « Modifier » dépend de estCreee().
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useCompanyStore } from '../stores/company'
+// Formulaire entreprise, deux modes selon l'URL :
+//  - création : /entreprises/nouveau (pas d'id) -> POST puis redirige vers la fiche
+//  - édition  : /entreprises/:id/fiche -> PUT sur l'entreprise courante
+import { computed, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useCompaniesStore } from '../stores/companies'
+import { useToasts } from '../composables/useToasts'
 import BaseButton from '../components/BaseButton.vue'
 
-const store = useCompanyStore()
+const route = useRoute()
+const router = useRouter()
+const store = useCompaniesStore()
+const toasts = useToasts()
+
+const companyId = computed(() => route.params.id || null)
+const edition = computed(() => companyId.value !== null)
 
 // Services exposés courants proposés en un clic ; l'utilisateur peut en ajouter d'autres.
 const SERVICES_COURANTS = [
@@ -27,24 +37,21 @@ const form = reactive({
 })
 
 const serviceSaisi = ref('')
-const confirmation = ref('')
 const erreurLocale = ref('')
 
+// En édition, pré-remplit depuis l'entreprise courante (chargée par CompanyLayout).
 function hydrater() {
-  const c = store.company
-  if (!c) return
+  const c = store.current
+  if (!edition.value || !c) return
   form.nom = c.nom || ''
   form.secteur = c.secteur || ''
-  form.nbEmployes = c.nbEmployes || ''
-  form.nbServeurs = c.nbServeurs || ''
-  form.nbPostes = c.nbPostes || ''
+  form.nbEmployes = c.nbEmployes ?? ''
+  form.nbServeurs = c.nbServeurs ?? ''
+  form.nbPostes = c.nbPostes ?? ''
   form.servicesExposes = Array.isArray(c.servicesExposes) ? [...c.servicesExposes] : []
 }
+watch(() => store.current, hydrater, { immediate: true })
 
-watch(() => store.company, hydrater, { immediate: true })
-onMounted(() => store.fetch())
-
-// Suggestions = services courants pas encore sélectionnés.
 const suggestions = computed(() => SERVICES_COURANTS.filter((s) => !form.servicesExposes.includes(s)))
 function ajouterService(service) {
   if (service && !form.servicesExposes.includes(service)) form.servicesExposes.push(service)
@@ -63,9 +70,8 @@ function estRenseigne(valeur) {
 }
 
 async function soumettre() {
-  confirmation.value = ''
   erreurLocale.value = ''
-  if (serviceSaisi.value.trim()) ajouterServicePerso()
+  if (serviceSaisi.value.trim()) ajouterSaisie()
 
   if (!estRenseigne(form.nbEmployes) || !estRenseigne(form.nbServeurs) || !estRenseigne(form.nbPostes)) {
     erreurLocale.value = "Renseignez le nombre d'employés, de serveurs et de postes de travail."
@@ -76,18 +82,27 @@ async function soumettre() {
     return
   }
 
+  const payload = {
+    nom: form.nom,
+    secteur: form.secteur,
+    nbEmployes: Number(form.nbEmployes) || 0,
+    nbServeurs: Number(form.nbServeurs) || 0,
+    nbPostes: Number(form.nbPostes) || 0,
+    servicesExposes: [...form.servicesExposes],
+  }
+
   try {
-    await store.save({
-      nom: form.nom,
-      secteur: form.secteur,
-      nbEmployes: Number(form.nbEmployes) || 0,
-      nbServeurs: Number(form.nbServeurs) || 0,
-      nbPostes: Number(form.nbPostes) || 0,
-      servicesExposes: [...form.servicesExposes],
-    })
-    confirmation.value = 'Entreprise enregistrée.'
-  } catch {
-    // store.error déjà renseigné et affiché.
+    if (edition.value) {
+      await store.update(companyId.value, payload)
+      toasts.success('Entreprise enregistrée.')
+    } else {
+      const company = await store.create(payload)
+      toasts.success('Entreprise créée.')
+      router.push({ name: 'entreprise-fiche', params: { id: company.id } })
+    }
+  } catch (e) {
+    // store.error reste affiché en ligne ; le toast donne un retour immédiat.
+    toasts.error(e.message)
   }
 }
 </script>
@@ -95,8 +110,8 @@ async function soumettre() {
 <template>
   <section class="page">
     <header class="page__head">
-      <h1>{{ store.estCreee() ? "Modifier l'entreprise" : "Créer l'entreprise" }}</h1>
-      <p class="page__sub">Décrivez votre organisation : ces éléments déterminent votre niveau de risque.</p>
+      <h1>{{ edition ? "Modifier l'entreprise" : 'Créer une entreprise' }}</h1>
+      <p class="page__sub">Décrivez votre organisation : ces éléments déterminent son niveau de risque.</p>
     </header>
 
     <form class="sheet" @submit.prevent="soumettre">
@@ -160,13 +175,12 @@ async function soumettre() {
       <div class="foot">
         <p v-if="erreurLocale" class="msg msg--error">{{ erreurLocale }}</p>
         <p v-else-if="store.error" class="msg msg--error">{{ store.error }}</p>
-        <p v-if="confirmation" class="msg msg--ok">{{ confirmation }}</p>
         <div class="actions">
           <BaseButton type="submit" :disabled="store.loading">
-            {{ store.loading ? 'Enregistrement…' : store.estCreee() ? 'Enregistrer' : "Créer l'entreprise" }}
+            {{ store.loading ? 'Enregistrement…' : edition ? 'Enregistrer' : "Créer l'entreprise" }}
           </BaseButton>
-          <BaseButton type="button" variant="ghost" :disabled="store.loading" @click="hydrater">
-            Réinitialiser
+          <BaseButton type="button" variant="ghost" :disabled="store.loading" @click="router.push({ name: 'entreprises' })">
+            Annuler
           </BaseButton>
         </div>
       </div>

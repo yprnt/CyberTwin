@@ -1,28 +1,32 @@
 <script setup>
 // Vue Rapport : synthèse imprimable. Recalcule le risque (R5).
 import { computed, onMounted } from 'vue'
-import { useCompanyStore } from '../stores/company'
+import { useRoute } from 'vue-router'
+import { useCompaniesStore } from '../stores/companies'
 import { useAssetsStore } from '../stores/assets'
 import { useVulnerabilitiesStore } from '../stores/vulnerabilities'
 import { useRiskStore } from '../stores/risk'
 import { tonNiveau, tonCriticite } from '../utils/niveau'
 import BaseButton from '../components/BaseButton.vue'
 
-const companyStore = useCompanyStore()
+const route = useRoute()
+const companiesStore = useCompaniesStore()
 const assetsStore = useAssetsStore()
 const vulnsStore = useVulnerabilitiesStore()
 const riskStore = useRiskStore()
 
+const companyId = computed(() => route.params.id)
+
 onMounted(async () => {
+  // l'entreprise est déjà chargée par CompanyLayout (companiesStore.current)
   await Promise.all([
-    companyStore.fetch(),
-    assetsStore.fetchAll(),
-    vulnsStore.fetchAll(),
-    riskStore.calculate(),
+    assetsStore.fetchAll(companyId.value),
+    vulnsStore.fetchAll(companyId.value),
+    riskStore.calculate(companyId.value),
   ])
 })
 
-const company = computed(() => companyStore.company)
+const company = computed(() => companiesStore.current)
 const resultat = computed(() => riskStore.result)
 
 function nomActif(assetId) {

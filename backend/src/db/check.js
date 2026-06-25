@@ -9,8 +9,9 @@ async function main() {
   const names = tables.map((row) => Object.values(row)[0]);
   console.log('Tables présentes :', names.join(', ') || '(aucune)');
 
-  const [company] = await pool.query('SELECT id, nom, servicesExposes FROM company WHERE id = 1');
-  console.log('Ligne company    :', company[0] || '(absente !)');
+  // Plus de ligne singleton : on compte les entreprises (0 sur une base neuve).
+  const [count] = await pool.query('SELECT COUNT(*) AS n FROM companies');
+  console.log('Entreprises      :', count[0].n);
 
   // l'ENUM criticite doit contenir « élevée » intact (test accents)
   const [enumInfo] = await pool.query(
@@ -20,8 +21,9 @@ async function main() {
   );
   console.log('ENUM criticite   :', enumInfo[0] ? enumInfo[0].COLUMN_TYPE : '(introuvable)');
 
-  const ok = names.includes('company') && names.includes('assets') && names.includes('vulnerabilities');
-  console.log(ok ? '\n✅ Connexion OK et 3 tables présentes.' : '\n❌ Schéma incomplet.');
+  const requises = ['users', 'companies', 'assets', 'vulnerabilities', 'risk_history'];
+  const ok = requises.every((t) => names.includes(t));
+  console.log(ok ? '\n✅ Connexion OK et 5 tables présentes.' : '\n❌ Schéma incomplet.');
 
   await pool.end();
   process.exit(ok ? 0 : 1);

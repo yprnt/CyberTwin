@@ -6,10 +6,11 @@ const {
   deleteVulnerability,
 } = require('../controllers/vulnerabilities.controller');
 
-const router = express.Router();
+// mergeParams : accéder à :companyId du routeur parent (companies.routes).
+const router = express.Router({ mergeParams: true });
 
 router.get('/', getVulnerabilities);
 router.post('/', createVulnerability);
-router.delete('/:id', deleteVulnerability);
+router.delete('/:vulnId', deleteVulnerability);
 
 module.exports = router;

@@ -2,8 +2,10 @@
 // Vue Vulnérabilités. Criticité : accents exacts (faible|moyenne|élevée) sinon 400.
 // Pas de PUT vuln (R7) : pour « modifier », supprimer puis ré-ajouter.
 import { computed, onMounted, reactive } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAssetsStore } from '../stores/assets'
 import { useVulnerabilitiesStore } from '../stores/vulnerabilities'
+import { useConfirm } from '../composables/useConfirm'
 import { tonCriticite } from '../utils/niveau'
 import BaseCard from '../components/BaseCard.vue'
 import BaseButton from '../components/BaseButton.vue'
@@ -15,11 +17,14 @@ const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1)
 
 const assetsStore = useAssetsStore()
 const store = useVulnerabilitiesStore()
+const { confirm } = useConfirm()
+const route = useRoute()
 
+const companyId = computed(() => route.params.id)
 const form = reactive({ assetId: '', nom: '', criticite: CRITICITES[0] })
 
 onMounted(async () => {
-  await Promise.all([assetsStore.fetchAll(), store.fetchAll()])
+  await Promise.all([assetsStore.fetchAll(companyId.value), store.fetchAll(companyId.value)])
 })
 
 function nomActif(assetId) {
@@ -31,7 +36,7 @@ const aDesActifs = computed(() => assetsStore.list.length > 0)
 
 async function ajouter() {
   try {
-    await store.create({
+    await store.create(companyId.value, {
       assetId: Number(form.assetId),
       nom: form.nom,
       criticite: form.criticite,
@@ -39,16 +44,22 @@ async function ajouter() {
     form.nom = ''
     form.criticite = CRITICITES[0]
   } catch {
-    // store.error déjà renseigné et affiché.
+    // Pas de toast (éviter le flood) : l'erreur s'affiche en ligne via store.error.
   }
 }
 
 async function supprimer(vuln) {
-  if (!confirm(`Supprimer la vulnérabilité « ${vuln.nom} » ?`)) return
+  const ok = await confirm({
+    title: 'Supprimer la vulnérabilité',
+    message: `« ${vuln.nom} » sera supprimée de cet actif.`,
+    confirmLabel: 'Supprimer',
+    danger: true,
+  })
+  if (!ok) return
   try {
-    await store.remove(vuln.id)
+    await store.remove(companyId.value, vuln.id)
   } catch {
-    // store.error déjà renseigné et affiché.
+    // store.error affiché en ligne.
   }
 }
 </script>

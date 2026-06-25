@@ -1,4 +1,6 @@
-// Pas de PUT (règle R7) : pour modifier une vuln, le front supprime + ré-ajoute.
+// Vulnérabilités d'une entreprise. Pas de PUT (règle R7) : pour modifier, le front
+// supprime + ré-ajoute. Scoping via l'actif : une vuln appartient à l'entreprise de
+// son actif (req.companyId posé par loadCompany).
 
 const pool = require('../db/pool');
 const { CRITICITES } = require('../constants');
@@ -6,7 +8,12 @@ const { CRITICITES } = require('../constants');
 async function getVulnerabilities(req, res) {
   try {
     const [rows] = await pool.query(
-      'SELECT id, assetId, nom, criticite FROM vulnerabilities ORDER BY id'
+      `SELECT v.id, v.assetId, v.nom, v.criticite
+         FROM vulnerabilities v
+         JOIN assets a ON a.id = v.assetId
+        WHERE a.companyId = ?
+        ORDER BY v.id`,
+      [req.companyId]
     );
     res.json(rows);
   } catch (err) {
@@ -34,10 +41,13 @@ async function createVulnerability(req, res) {
   }
 
   try {
-    // l'actif doit exister, sinon 404
-    const [assets] = await pool.query('SELECT id FROM assets WHERE id = ?', [assetId]);
+    // L'actif doit exister ET appartenir à cette entreprise, sinon 404.
+    const [assets] = await pool.query('SELECT id FROM assets WHERE id = ? AND companyId = ?', [
+      assetId,
+      req.companyId,
+    ]);
     if (assets.length === 0) {
-      return res.status(404).json({ message: "L'actif (assetId) n'existe pas." });
+      return res.status(404).json({ message: "L'actif (assetId) n'existe pas dans cette entreprise." });
     }
 
     const [result] = await pool.query(
@@ -52,13 +62,19 @@ async function createVulnerability(req, res) {
 }
 
 async function deleteVulnerability(req, res) {
-  const id = Number(req.params.id);
+  const id = Number(req.params.vulnId);
   if (!Number.isInteger(id)) {
     return res.status(404).json({ message: 'Vulnérabilité introuvable.' });
   }
 
   try {
-    const [result] = await pool.query('DELETE FROM vulnerabilities WHERE id = ?', [id]);
+    // Jointure sur l'actif : on ne supprime que si la vuln relève bien de cette entreprise.
+    const [result] = await pool.query(
+      `DELETE v FROM vulnerabilities v
+         JOIN assets a ON a.id = v.assetId
+        WHERE v.id = ? AND a.companyId = ?`,
+      [id, req.companyId]
+    );
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Vulnérabilité introuvable.' });
     }

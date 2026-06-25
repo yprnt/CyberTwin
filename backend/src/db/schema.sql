@@ -1,4 +1,4 @@
--- CyberTwin — création de la base. Cible MySQL 8.0.16+ (CHECK appliqués).
+-- CyberTwin — création de la base. Cible MySQL 8.0.16+.
 -- Lancement : npm run db:init (depuis backend/)
 
 -- utf8mb4 obligatoire : sinon les accents (« élevée », « Pare-feu ») cassent en base.
@@ -9,34 +9,47 @@ CREATE DATABASE cybertwin
 
 USE cybertwin;
 
--- COMPANY : entreprise singleton (une seule ligne, id = 1)
-CREATE TABLE company (
-    id              INT PRIMARY KEY DEFAULT 1,
+-- USERS : comptes pour l'accès à l'application (auth JWT). passwordHash = bcrypt.
+CREATE TABLE users (
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    username     VARCHAR(64)  NOT NULL UNIQUE,   -- UNIQUE : un seul compte par identifiant
+    passwordHash VARCHAR(255) NOT NULL,
+    createdAt    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- COMPANIES : chaque utilisateur possède plusieurs entreprises (multi-entreprise).
+-- Supprimer un compte supprime ses entreprises (et, en cascade, leurs actifs/vulns/historique).
+CREATE TABLE companies (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    userId          INT          NOT NULL,
     nom             VARCHAR(255) NOT NULL DEFAULT '',
     secteur         VARCHAR(255) NOT NULL DEFAULT '',
     nbEmployes      INT          NOT NULL DEFAULT 0,
     nbServeurs      INT          NOT NULL DEFAULT 0,
     nbPostes        INT          NOT NULL DEFAULT 0,
     servicesExposes JSON         NOT NULL,            -- tableau JSON : ["Site web", "VPN"]
-    CONSTRAINT chk_company_singleton CHECK (id = 1)   -- interdit une 2e entreprise
+    createdAt       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_company_user
+        FOREIGN KEY (userId) REFERENCES users(id)
+        ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- ligne vide de départ : GET /company renvoie ces valeurs tant que rien n'est saisi
-INSERT INTO company (id, nom, secteur, nbEmployes, nbServeurs, nbPostes, servicesExposes)
-VALUES (1, '', '', 0, 0, 0, JSON_ARRAY());
-
 CREATE TABLE assets (
-    id     INT AUTO_INCREMENT PRIMARY KEY,
-    nom    VARCHAR(255) NOT NULL,
-    type   ENUM(                                  -- validation des types au niveau base
+    id        INT AUTO_INCREMENT PRIMARY KEY,
+    companyId INT NOT NULL,                          -- entreprise propriétaire de l'actif
+    nom       VARCHAR(255) NOT NULL,
+    type      ENUM(                                  -- validation des types au niveau base
                 'Serveur Web',
                 'Base de données',
                 'Poste utilisateur',
                 'Routeur',
                 'Pare-feu',
                 'Application métier'
-           ) NOT NULL,
-    expose BOOLEAN NOT NULL DEFAULT FALSE          -- exposé sur Internet ?
+              ) NOT NULL,
+    expose    BOOLEAN NOT NULL DEFAULT FALSE,         -- exposé sur Internet ?
+    CONSTRAINT fk_asset_company
+        FOREIGN KEY (companyId) REFERENCES companies(id)
+        ON DELETE CASCADE      -- supprimer une entreprise supprime ses actifs (R3 étendue)
 ) ENGINE=InnoDB;
 
 CREATE TABLE vulnerabilities (
@@ -47,4 +60,19 @@ CREATE TABLE vulnerabilities (
     CONSTRAINT fk_vuln_asset
         FOREIGN KEY (assetId) REFERENCES assets(id)
         ON DELETE CASCADE      -- supprimer un actif supprime aussi ses vulns (règle R3)
+) ENGINE=InnoDB;
+
+-- RISK_HISTORY : snapshots de risque enregistrés volontairement, par entreprise.
+-- Le calcul du risque reste non stocké (R5) ; une ligne ici = une « analyse archivée ».
+CREATE TABLE risk_history (
+    id               INT AUTO_INCREMENT PRIMARY KEY,
+    companyId        INT         NOT NULL,
+    score            INT         NOT NULL,
+    niveau           VARCHAR(10) NOT NULL,
+    nbActifs         INT         NOT NULL,
+    nbVulnerabilites INT         NOT NULL,
+    createdAt        TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_history_company
+        FOREIGN KEY (companyId) REFERENCES companies(id)
+        ON DELETE CASCADE
 ) ENGINE=InnoDB;

@@ -7,11 +7,12 @@ const {
   deleteAsset,
 } = require('../controllers/assets.controller');
 
-const router = express.Router();
+// mergeParams : accéder à :companyId du routeur parent (companies.routes).
+const router = express.Router({ mergeParams: true });
 
 router.get('/', getAssets);
 router.post('/', createAsset);
-router.put('/:id', updateAsset);
-router.delete('/:id', deleteAsset);
+router.put('/:assetId', updateAsset);
+router.delete('/:assetId', deleteAsset);
 
 module.exports = router;

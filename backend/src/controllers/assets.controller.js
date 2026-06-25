@@ -1,3 +1,6 @@
+// Actifs d'une entreprise. req.companyId est posé par loadCompany (appartenance
+// déjà vérifiée) : toutes les requêtes filtrent dessus pour rester isolées.
+
 const pool = require('../db/pool');
 const { ASSET_TYPES } = require('../constants');
 
@@ -17,7 +20,10 @@ function parseExpose(value) {
 
 async function getAssets(req, res) {
   try {
-    const [rows] = await pool.query('SELECT id, nom, type, expose FROM assets ORDER BY id');
+    const [rows] = await pool.query(
+      'SELECT id, nom, type, expose FROM assets WHERE companyId = ? ORDER BY id',
+      [req.companyId]
+    );
     res.json(rows.map(normalizeAsset));
   } catch (err) {
     console.error(err);
@@ -43,8 +49,8 @@ async function createAsset(req, res) {
 
   try {
     const [result] = await pool.query(
-      'INSERT INTO assets (nom, type, expose) VALUES (?, ?, ?)',
-      [nom, type, expose ? 1 : 0]
+      'INSERT INTO assets (companyId, nom, type, expose) VALUES (?, ?, ?, ?)',
+      [req.companyId, nom, type, expose ? 1 : 0]
     );
     res.status(201).json({ id: result.insertId, nom, type, expose });
   } catch (err) {
@@ -53,15 +59,18 @@ async function createAsset(req, res) {
   }
 }
 
-// PUT partiel : on part de l'existant et on remplace les champs fournis.
+// PUT partiel : on part de l'existant (scopé à l'entreprise) et on remplace les champs fournis.
 async function updateAsset(req, res) {
-  const id = Number(req.params.id);
+  const id = Number(req.params.assetId);
   if (!Number.isInteger(id)) {
     return res.status(404).json({ message: 'Actif introuvable.' });
   }
 
   try {
-    const [rows] = await pool.query('SELECT id, nom, type, expose FROM assets WHERE id = ?', [id]);
+    const [rows] = await pool.query(
+      'SELECT id, nom, type, expose FROM assets WHERE id = ? AND companyId = ?',
+      [id, req.companyId]
+    );
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Actif introuvable.' });
     }
@@ -91,11 +100,12 @@ async function updateAsset(req, res) {
       expose = parseExpose(body.expose);
     }
 
-    await pool.query('UPDATE assets SET nom = ?, type = ?, expose = ? WHERE id = ?', [
+    await pool.query('UPDATE assets SET nom = ?, type = ?, expose = ? WHERE id = ? AND companyId = ?', [
       nom,
       type,
       expose ? 1 : 0,
       id,
+      req.companyId,
     ]);
     res.json({ id, nom, type, expose });
   } catch (err) {
@@ -106,13 +116,16 @@ async function updateAsset(req, res) {
 
 // supprime l'actif ET ses vulnérabilités (cascade SQL, règle R3)
 async function deleteAsset(req, res) {
-  const id = Number(req.params.id);
+  const id = Number(req.params.assetId);
   if (!Number.isInteger(id)) {
     return res.status(404).json({ message: 'Actif introuvable.' });
   }
 
   try {
-    const [result] = await pool.query('DELETE FROM assets WHERE id = ?', [id]);
+    const [result] = await pool.query('DELETE FROM assets WHERE id = ? AND companyId = ?', [
+      id,
+      req.companyId,
+    ]);
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Actif introuvable.' });
     }
