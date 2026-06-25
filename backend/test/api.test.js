@@ -86,6 +86,40 @@ test('PUT /company valide -> 200 et persiste', async () => {
   assert.deepEqual(data.servicesExposes, ['Site web', 'VPN']);
 });
 
+test('PUT /company sans les effectifs -> 400', async () => {
+  const { status } = await api('PUT', '/company', {
+    nom: 'X',
+    secteur: 'Transport',
+    servicesExposes: ['Site web'],
+  });
+  assert.equal(status, 400);
+});
+
+test('PUT /company sans service exposé -> 400', async () => {
+  const { status } = await api('PUT', '/company', {
+    nom: 'X',
+    secteur: 'Transport',
+    nbEmployes: 10,
+    nbServeurs: 2,
+    nbPostes: 8,
+    servicesExposes: [],
+  });
+  assert.equal(status, 400);
+});
+
+test('PUT /company accepte des effectifs à 0', async () => {
+  const { status, data } = await api('PUT', '/company', {
+    nom: 'PME Cloud',
+    secteur: 'Services',
+    nbEmployes: 0,
+    nbServeurs: 0,
+    nbPostes: 0,
+    servicesExposes: ['Site web'],
+  });
+  assert.equal(status, 200);
+  assert.equal(data.nbServeurs, 0);
+});
+
 // ------------------------------------------------------------------ Assets
 let assetId;
 

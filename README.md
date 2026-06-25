@@ -4,7 +4,7 @@ Application web Fullstack qui modélise une entreprise fictive, gère ses **acti
 informatiques et leurs **vulnérabilités**, et évalue automatiquement son **niveau de risque
 cyber** (faible / moyen / élevé) avec des recommandations de sécurité.
 
-Projet de binôme Mehmet YUKSEL / PARENT YANIS— **Backend** : Node.js / Express / MySQL · **Frontend** : Vue.js / Pinia.
+Projet de binôme **Mehmet YUKSEL** / **Yanis PARENT** — **Backend** : Node.js / Express / MySQL · **Frontend** : Vue.js / Pinia.
 
 ---
 
@@ -122,8 +122,10 @@ URL de base : `http://localhost:3000` · Échanges **JSON** · **CORS** activé.
 ```
 
 #### `PUT /company`
-Reçoit un objet entreprise. `nom` et `secteur` obligatoires.
-→ `200` entreprise à jour · `400` si `nom`/`secteur` manquant.
+Reçoit un objet entreprise. Tous les champs sont obligatoires : `nom`, `secteur`,
+les effectifs (`nbEmployes`, `nbServeurs`, `nbPostes` — entiers positifs ou nuls, `0` accepté)
+et au moins un service dans `servicesExposes`.
+→ `200` entreprise à jour · `400` si un champ requis manque.
 ```json
 { "nom": "Boréale Logistique", "secteur": "Transport et logistique",
   "nbEmployes": 48, "nbServeurs": 6, "nbPostes": 35,
@@ -233,4 +235,55 @@ npm test
 
 ## Frontend
 
+Application Vue.js 3 (Composition API) qui consomme l'API REST. Vue Router pour la
+navigation, Pinia pour l'état, Chart.js pour les graphiques. Aucune dépendance UI :
+le style est maison, piloté par des variables CSS (thème clair / sombre).
+
+### Installation & exécution
+
+```bash
+cd frontend
+npm install
+npm run dev        # http://localhost:5173
+```
+
+| Script | Rôle |
+|--------|------|
+| `npm run dev` | Serveur de développement Vite (rechargement à chaud) |
+| `npm run build` | Build de production dans `dist/` |
+| `npm run preview` | Sert le build de production en local |
+
+> Le front appelle l'API sur `http://localhost:3000` : démarrer le backend en parallèle
+> (ou, depuis la racine, `npm run dev` lance les deux à la fois via `concurrently`).
+
+### Pages
+
+| Route | Page | Rôle |
+|-------|------|------|
+| `/` | Accueil | Démarrer de zéro ou charger la démo « Boréale » |
+| `/entreprise` | Entreprise | Créer / modifier la fiche (singleton) |
+| `/actifs` | Actifs | Lister, ajouter, modifier, supprimer les actifs |
+| `/vulnerabilites` | Vulnérabilités | Rattacher / supprimer les failles d'un actif |
+| `/tableau-de-bord` | Tableau de bord | Score, niveau, jauge, 3 graphiques, recommandations |
+| `/rapport` | Rapport | Synthèse imprimable / exportable en PDF |
+
+### Organisation (`frontend/src/`)
+
+- **`services/`** — couche données. `api.js` expose un point d'entrée unique ;
+  `http.js` parle au vrai backend, `mock.js` est un repli hors-ligne en mémoire
+  (reproduit validation, cascade et calcul du risque). Bascule via `USE_MOCK` dans
+  `config.js`.
+- **`stores/`** — stores Pinia (`company`, `assets`, `vulnerabilities`, `risk`) :
+  chaque store gère `loading` / `error` et délègue à `api`.
+- **`views/`** — une vue par page · **`components/`** — composants réutilisables
+  (`BaseButton`, `BaseCard`, `BaseBadge`, `StatTile`, `ThemeToggle`).
+- **`styles/`** — `tokens.css` (variables de thème) + `base.css` (reset + éléments natifs).
+
+### Points notables
+
+- **Dark mode** : bascule persistée (localStorage), appliquée avant le premier paint
+  pour éviter tout flash.
+- **Export PDF** : la page Rapport utilise `window.print()` + une feuille de style
+  d'impression dédiée.
+- **Responsive** : mise en page fluide, tables défilables sur petit écran.
 

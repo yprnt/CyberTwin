@@ -67,16 +67,16 @@ async function supprimer(asset) {
   <section class="page">
     <header class="page__head">
       <h1>Actifs</h1>
-      <p class="page__sub">Inventaire du parc à protéger.</p>
+      <p class="page__sub">Recensez les équipements informatiques de votre organisation.</p>
     </header>
 
-    <BaseCard class="mb">
-      <template #header>
-        <h2>{{ editId !== null ? "Modifier l'actif" : 'Ajouter un actif' }}</h2>
-        <BaseBadge v-if="editId !== null" ton="accent">Édition</BaseBadge>
-      </template>
-
-      <form class="form" @submit.prevent="soumettre">
+    <form class="sheet mb" @submit.prevent="soumettre">
+      <section class="sec">
+        <div class="sec__head">
+          <span class="eyebrow">{{ editId !== null ? "Modifier l'actif" : 'Ajouter un actif' }}</span>
+          <BaseBadge v-if="editId !== null" ton="accent">Édition</BaseBadge>
+        </div>
+        <p class="grp-help">Un actif = un équipement informatique. Cochez « Exposé à Internet » s'il est accessible depuis l'extérieur.</p>
         <div class="row">
           <label class="field grow">
             <span>Nom</span>
@@ -88,19 +88,20 @@ async function supprimer(asset) {
               <option v-for="t in TYPES" :key="t" :value="t">{{ t }}</option>
             </select>
           </label>
-          <label class="field check">
+          <label class="toggle">
             <input v-model="form.expose" type="checkbox" />
-            <span>Exposé à Internet</span>
+            <span class="toggle__track"><span class="toggle__thumb"></span></span>
+            <span class="toggle__label">Exposé à Internet</span>
           </label>
         </div>
-        <div class="actions">
-          <BaseButton type="submit" :disabled="store.loading">{{ editId !== null ? 'Enregistrer' : 'Ajouter' }}</BaseButton>
-          <BaseButton v-if="editId !== null" type="button" variant="ghost" @click="reinit">
-            Annuler
-          </BaseButton>
-        </div>
-      </form>
-    </BaseCard>
+      </section>
+      <div class="foot">
+        <BaseButton type="submit" :disabled="store.loading">{{ editId !== null ? 'Enregistrer' : 'Ajouter' }}</BaseButton>
+        <BaseButton v-if="editId !== null" type="button" variant="ghost" @click="reinit">
+          Annuler
+        </BaseButton>
+      </div>
+    </form>
 
     <p v-if="store.error" class="msg msg--error">{{ store.error }}</p>
 
@@ -145,10 +146,37 @@ async function supprimer(asset) {
 .mb {
   margin-bottom: 1rem;
 }
-.form {
+/* Panneau de formulaire cohérent avec la page Entreprise (Design 2). */
+.sheet {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.sec {
+  padding: 1.5rem 1.6rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+.sec__head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text);
+}
+.grp-help {
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  margin-top: -0.65rem;
 }
 .row {
   display: flex;
@@ -168,13 +196,59 @@ async function supprimer(asset) {
   font-weight: 600;
   font-size: 0.85rem;
 }
-.field.check {
-  flex-direction: row;
+/* Interrupteur « Exposé à Internet ». */
+.toggle {
+  display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  padding-bottom: 0.6rem;
+  gap: 0.6rem;
+  cursor: pointer;
+  padding-bottom: 0.55rem;
+  user-select: none;
 }
-.actions {
+.toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.toggle__track {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.toggle__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.18s ease;
+}
+.toggle input:checked + .toggle__track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.toggle input:checked + .toggle__track .toggle__thumb {
+  transform: translateX(18px);
+}
+.toggle input:focus-visible + .toggle__track {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.toggle__label {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.foot {
+  padding: 1.1rem 1.6rem;
+  border-top: 1px solid var(--border);
   display: flex;
   gap: 0.6rem;
 }

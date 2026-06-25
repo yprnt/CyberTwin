@@ -166,6 +166,14 @@ export const mockApi = {
   putCompany: (payload) => {
     if (!payload || !payload.nom || !payload.secteur)
       return fail("Le nom et le secteur de l'entreprise sont requis.")
+    const nbValide = (v) =>
+      v !== undefined && v !== null && v !== '' && Number.isFinite(Number(v)) && Number(v) >= 0
+    if (!nbValide(payload.nbEmployes) || !nbValide(payload.nbServeurs) || !nbValide(payload.nbPostes))
+      return fail(
+        "Le nombre d'employés, de serveurs et de postes est obligatoire (entier positif ou nul).",
+      )
+    if (!Array.isArray(payload.servicesExposes) || payload.servicesExposes.length === 0)
+      return fail('Indiquez au moins un service exposé sur Internet.')
     company = {
       nom: payload.nom,
       secteur: payload.secteur,

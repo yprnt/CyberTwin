@@ -130,11 +130,12 @@ tbody tr:last-child td {
 
 /* --- Utilitaires partagés par les vues --------------------------------- */
 .page__head {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.75rem;
 }
 .page__sub {
   color: var(--text-muted);
-  margin-top: 0.25rem;
+  margin-top: 0.6rem;
+  line-height: 1.55;
 }
 .muted {
   color: var(--text-muted);

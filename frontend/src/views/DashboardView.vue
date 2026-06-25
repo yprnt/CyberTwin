@@ -38,6 +38,7 @@ onMounted(async () => {
 const resultat = computed(() => riskStore.result)
 const aDesActifs = computed(() => assetsStore.list.length > 0)
 const aDesVulns = computed(() => vulnsStore.list.length > 0)
+const nbExposes = computed(() => assetsStore.list.filter((a) => a.expose === true).length)
 
 // Chart.js veut des couleurs concrètes, pas des var(--…). `themed` lit le token
 // CSS et le relit à chaque bascule de thème via la dépendance à isDark.
@@ -61,9 +62,9 @@ const cMoyenne = themed('--warning')
 const cElevee = themed('--danger')
 const cNeutral = themed('--neutral')
 
-// Palette catégorielle pour « actifs par type » : couleurs distinctes sans
-// équivalent sémantique dans les tokens, donc volontairement fixes.
-const PALETTE = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4']
+// Palette catégorielle pour « actifs par type » : harmonisée avec l'accent
+// (émeraude/cyan en tête), couleurs distinctes sans équivalent token.
+const PALETTE = ['#059669', '#06b6d4', '#6366f1', '#8b5cf6', '#f59e0b', '#ef4444']
 
 const typeData = computed(() => {
   const par = {}
@@ -118,9 +119,19 @@ const exposData = computed(() => {
 const doughnutOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
-  cutout: '62%',
+  cutout: '68%',
   plugins: {
-    legend: { position: 'bottom', labels: { color: txtColor.value, padding: 14, boxWidth: 12 } },
+    legend: {
+      position: 'bottom',
+      labels: {
+        color: txtColor.value,
+        padding: 16,
+        usePointStyle: true,
+        pointStyle: 'circle',
+        boxWidth: 8,
+        font: { size: 12 },
+      },
+    },
   },
 }))
 
@@ -168,14 +179,14 @@ const barOptions = computed(() => ({
             </svg>
           </template>
         </StatTile>
-        <StatTile label="Score de risque" :value="resultat.score + ' / 100'" ton="accent" gradient>
+        <StatTile label="Exposés à Internet" :value="nbExposes" ton="warning">
           <template #icon>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9">
-              <path d="M4 14a8 8 0 0 1 16 0" /><line x1="12" y1="14" x2="16" y2="10" />
+              <circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18" />
             </svg>
           </template>
         </StatTile>
-        <StatTile label="Niveau" :ton="tonNiveau(resultat.niveau)">
+        <StatTile label="Niveau de risque" :ton="tonNiveau(resultat.niveau)">
           <template #icon>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9">
               <line x1="6" y1="20" x2="6" y2="14" /><line x1="12" y1="20" x2="12" y2="9" /><line x1="18" y1="20" x2="18" y2="4" />

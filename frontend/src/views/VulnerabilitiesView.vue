@@ -10,6 +10,8 @@ import BaseButton from '../components/BaseButton.vue'
 import BaseBadge from '../components/BaseBadge.vue'
 
 const CRITICITES = ['faible', 'moyenne', 'élevée']
+// Affichage avec majuscule ; la valeur envoyée à l'API reste en minuscules (sinon 400).
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1)
 
 const assetsStore = useAssetsStore()
 const store = useVulnerabilitiesStore()
@@ -55,7 +57,7 @@ async function supprimer(vuln) {
   <section class="page">
     <header class="page__head">
       <h1>Vulnérabilités</h1>
-      <p class="page__sub">Recensez les failles rattachées à chaque actif.</p>
+      <p class="page__sub">Listez les failles ou faiblesses connues de chaque équipement.</p>
     </header>
 
     <BaseCard v-if="!aDesActifs && !assetsStore.loading" class="mb">
@@ -64,9 +66,10 @@ async function supprimer(vuln) {
       </p>
     </BaseCard>
 
-    <BaseCard v-else class="mb">
-      <template #header><h2>Ajouter une vulnérabilité</h2></template>
-      <form class="form" @submit.prevent="ajouter">
+    <form v-else class="sheet mb" @submit.prevent="ajouter">
+      <section class="sec">
+        <span class="eyebrow">Ajouter une vulnérabilité</span>
+        <p class="grp-help">Rattachez chaque faille à un équipement, nommez-la, puis indiquez sa gravité (criticité).</p>
         <div class="row">
           <label class="field">
             <span>Actif concerné</span>
@@ -84,15 +87,15 @@ async function supprimer(vuln) {
           <label class="field">
             <span>Criticité</span>
             <select v-model="form.criticite">
-              <option v-for="c in CRITICITES" :key="c" :value="c">{{ c }}</option>
+              <option v-for="c in CRITICITES" :key="c" :value="c">{{ cap(c) }}</option>
             </select>
           </label>
         </div>
-        <div class="actions">
-          <BaseButton type="submit" :disabled="store.loading">Ajouter</BaseButton>
-        </div>
-      </form>
-    </BaseCard>
+      </section>
+      <div class="foot">
+        <BaseButton type="submit" :disabled="store.loading">Ajouter</BaseButton>
+      </div>
+    </form>
 
     <p v-if="store.error" class="msg msg--error">{{ store.error }}</p>
 
@@ -132,10 +135,32 @@ async function supprimer(vuln) {
 .mb {
   margin-bottom: 1rem;
 }
-.form {
+/* Panneau de formulaire cohérent avec la page Entreprise (Design 2). */
+.sheet {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.sec {
+  padding: 1.5rem 1.6rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+.eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text);
+}
+.grp-help {
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  margin-top: -0.65rem;
 }
 .row {
   display: flex;
@@ -155,7 +180,9 @@ async function supprimer(vuln) {
   font-weight: 600;
   font-size: 0.85rem;
 }
-.actions {
+.foot {
+  padding: 1.1rem 1.6rem;
+  border-top: 1px solid var(--border);
   display: flex;
   gap: 0.6rem;
 }
